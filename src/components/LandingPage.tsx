@@ -6,7 +6,6 @@ import { PLVLogo } from './PLVLogo';
 import { useApp } from '../context/AppContext';
 import { Footer } from './Footer';
 import { motion } from 'motion/react';
-import plvBuildingImage from 'figma:asset/c4be1922e180b1634ae10a9a41241f9d161e2975.png';
 
 export const LandingPage = () => {
   const { setCurrentPage } = useApp();
@@ -173,7 +172,7 @@ export const LandingPage = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src={plvBuildingImage}
+            src="/images/plv-building.png"
             alt="PLV Campus"
             className="w-full h-full object-cover"
           />
