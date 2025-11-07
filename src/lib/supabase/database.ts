@@ -138,23 +138,32 @@ export const getPendingItems = async () => {
       return { success: false, error: error.message, data: [] };
     }
 
-    const items: LostItem[] = (data || []).map((item) => ({
-      id: item.id,
-      itemType: item.item_type,
-      otherItemTypeDetails: item.other_item_type_details || undefined,
-      location: item.location,
-      otherLocationDetails: item.other_location_details || undefined,
-      dateFound: item.date_found,
-      timeFound: item.time_found,
-      photoUrl: item.photo_url,
-      description: item.description || undefined,
-      securityQuestions: item.security_questions as SecurityQuestion[],
-      reportedBy: item.reported_by,
-      reporterName: item.users?.full_name,
-      reporterStudentId: item.users?.student_id,
-      status: item.status as 'pending' | 'verified' | 'claimed',
-      reportedAt: item.created_at,
-    }));
+    const items: LostItem[] = (data || []).map((item) => {
+      console.log('📝 Pending item data:', {
+        id: item.id,
+        reported_by: item.reported_by,
+        users: item.users,
+        reporterName: item.users?.full_name
+      });
+      
+      return {
+        id: item.id,
+        itemType: item.item_type,
+        otherItemTypeDetails: item.other_item_type_details || undefined,
+        location: item.location,
+        otherLocationDetails: item.other_location_details || undefined,
+        dateFound: item.date_found,
+        timeFound: item.time_found,
+        photoUrl: item.photo_url,
+        description: item.description || undefined,
+        securityQuestions: item.security_questions as SecurityQuestion[],
+        reportedBy: item.reported_by,
+        reporterName: item.users?.full_name,
+        reporterStudentId: item.users?.student_id,
+        status: item.status as 'pending' | 'verified' | 'claimed',
+        reportedAt: item.created_at,
+      };
+    });
 
     return { success: true, data: items };
   } catch (error: any) {
@@ -1039,12 +1048,11 @@ export const createAdminUser = async (
     console.log('📧 Creating auth account for admin:', adminData.email);
     console.log('🆔 Admin ID:', adminId);
     
-    // Step 1: Create auth account via signup
+    // Step 1: Create auth account via signup (auto-confirm for admins, no email)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: adminData.email,
       password: tempPassword,
       options: {
-        emailRedirectTo: `${window.location.origin}?type=recovery`,
         data: {
           full_name: adminData.fullName,
           student_id: adminId,
