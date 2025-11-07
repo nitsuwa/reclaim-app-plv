@@ -267,7 +267,7 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
  */
 export const signOut = async (): Promise<AuthResult> => {
   try {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) {
       return { success: false, error: error.message };
     }
