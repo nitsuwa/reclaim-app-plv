@@ -172,7 +172,7 @@ export const LandingPage = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/images/plv-building.png"
+            src="/images/plv-building.jpg"
             alt="PLV Campus"
             className="w-full h-full object-cover"
           />
