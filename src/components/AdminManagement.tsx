@@ -221,8 +221,8 @@ export const AdminManagement = ({ currentUserId, currentUserName, onAdminActionC
 
       if (result.success) {
         toast.success('Admin account created!', {
-          description: 'A password reset email has been sent to the admin. They can set their own password.',
-          duration: 8000
+          description: 'Password reset email sent. Note: A confirmation email is also sent automatically but can be ignored - the account is already active.',
+          duration: 10000
         });
 
         // Log admin activity
