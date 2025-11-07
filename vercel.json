@@ -6,12 +6,12 @@
       "use": "@vercel/node"
     },
     {
-      "src": "vite.config.ts",
+      "src": "package.json",
       "use": "@vercel/static-build"
     }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/src/index.ts" },
-    { "src": "/(.*)", "dest": "/" }
+    { "src": "/(.*)", "dest": "/dist/$1" }
   ]
 }
