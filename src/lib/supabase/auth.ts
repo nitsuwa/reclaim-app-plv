@@ -200,6 +200,19 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
       }
       
       loginEmail = result.email;
+    } else {
+      // ✅ CHECK IF EMAIL EXISTS IN DATABASE (if input is email format)
+      const emailCheck = await checkEmailExists(loginEmail);
+      
+      if (emailCheck.error) {
+        console.error('❌ Error checking email:', emailCheck.error);
+        // Continue with login attempt - let Supabase handle it
+      } else if (!emailCheck.exists) {
+        return { 
+          success: false, 
+          error: 'No account found with this email. Please check your email or register for a new account.' 
+        };
+      }
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -208,6 +221,10 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
     });
 
     if (error) {
+      // Provide better error messages
+      if (error.message.includes('Invalid login credentials')) {
+        return { success: false, error: 'Incorrect password. Please try again.' };
+      }
       return { success: false, error: error.message };
     }
 
