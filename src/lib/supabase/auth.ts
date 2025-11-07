@@ -235,6 +235,23 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
       };
     }
 
+    // ✅ AUTO-UPDATE is_verified if email is confirmed but database shows false
+    if (data.user.email_confirmed_at && !profile.is_verified) {
+      console.log('✅ Email is confirmed in auth but is_verified is false - updating database...');
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ is_verified: true })
+        .eq('auth_id', data.user.id);
+      
+      if (updateError) {
+        console.error('❌ Failed to update is_verified:', updateError);
+        // Don't fail login - just log the error
+      } else {
+        console.log('✅ Database is_verified updated to true');
+        profile.is_verified = true; // Update local profile object
+      }
+    }
+
     // Check if account is active
     if (profile.status === 'inactive') {
       // Sign out the user immediately
