@@ -7,7 +7,7 @@ import { PLVLogo } from './PLVLogo';
 import { supabase } from '../lib/supabase/client';
 
 export const EmailVerifiedPage = () => {
-  const { setCurrentPage, currentUser, setCurrentUser } = useApp();
+  const { setCurrentPage, setCurrentUser } = useApp();
   const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error'>('checking');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -16,94 +16,105 @@ export const EmailVerifiedPage = () => {
       try {
         console.log('🔍 Starting email verification check...');
         console.log('🌐 Full URL:', window.location.href);
+        console.log('📍 Search:', window.location.search);
+        console.log('📍 Hash:', window.location.hash);
 
-        // Wait a moment for everything to settle
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // IMPORTANT: Supabase redirects with tokens in the URL fragment (hash)
+        // The format is: https://yourapp.com/#access_token=xxx&refresh_token=yyy&type=signup
+        // We need to let Supabase's detectSessionInUrl handle this automatically
+        
+        // Give Supabase time to detect and process the session from URL
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // STRATEGY 1: Check if user is already logged in with verified email
+        // Check for error first
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        const error = searchParams.get('error') || hashParams.get('error');
+        const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
+
+        if (error) {
+          console.error('❌ Verification error from URL:', error, errorDescription);
+          setVerificationStatus('error');
+          setErrorMessage(errorDescription || 'Email verification failed. Please try again.');
+          return;
+        }
+
+        // Try to get the current session (Supabase should have auto-processed it)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
+        console.log('📧 Session check:', session ? 'Found' : 'Not found');
+        
+        if (sessionError) {
+          console.error('❌ Session error:', sessionError);
+          setVerificationStatus('error');
+          setErrorMessage('Failed to verify email. Please try again.');
+          return;
+        }
+
         if (session?.user) {
-          console.log('✅ Session found:', session.user.email);
+          console.log('✅ User session found:', session.user.email);
           console.log('📧 Email confirmed at:', session.user.email_confirmed_at);
           
+          // Check if email is confirmed
           if (session.user.email_confirmed_at) {
-            console.log('🎉 Email is verified! User was auto-logged in by Supabase');
+            console.log('🎉 Email is verified!');
             
-            // Email is verified! Sign them out so they can login fresh
+            // Update the user's is_verified status in the database
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({ is_verified: true })
+              .eq('auth_id', session.user.id);
+
+            if (updateError) {
+              console.error('❌ Failed to update is_verified:', updateError);
+              // Don't fail the verification - just log the error
+            } else {
+              console.log('✅ Database is_verified updated to true');
+            }
+            
+            // Sign out the user so they can log in fresh
             await supabase.auth.signOut();
-            console.log('👋 Signed out - user must now log in manually');
+            console.log('👋 Signed out - user can now log in');
             
             setVerificationStatus('success');
+            
+            // Clean up URL
             window.history.replaceState({}, document.title, window.location.pathname);
             return;
           } else {
-            console.warn('⚠️ Session exists but email not confirmed yet');
-            // Don't fail yet - try token method below
-          }
-        }
-
-        // STRATEGY 2: Try to get tokens from URL (hash or query params)
-        let accessToken = null;
-        let refreshToken = null;
-
-        // Check hash first
-        if (window.location.hash) {
-          const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          accessToken = hashParams.get('access_token');
-          refreshToken = hashParams.get('refresh_token');
-          console.log('🔑 Hash tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken });
-        }
-
-        // Fallback to query params
-        if (!accessToken) {
-          const searchParams = new URLSearchParams(window.location.search);
-          accessToken = searchParams.get('access_token');
-          refreshToken = searchParams.get('refresh_token');
-          console.log('🔑 Query tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken });
-        }
-
-        if (accessToken && refreshToken) {
-          console.log('✅ Tokens found! Setting session...');
-          
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            console.error('❌ Session error:', error);
-            setVerificationStatus('error');
-            setErrorMessage('Failed to verify email. Please try the link again.');
-            return;
-          }
-
-          if (data.user?.email_confirmed_at) {
-            console.log('🎉 Email verified via token method!');
-            setVerificationStatus('success');
-            
-            // Sign out so they can log in fresh
-            await supabase.auth.signOut();
-            console.log('👋 Signed out - user can now log in');
-          } else {
-            console.error('❌ Email not confirmed');
-            setVerificationStatus('error');
-            setErrorMessage('Email verification incomplete. Please try again.');
-          }
-          
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } else {
-          // No tokens and no verified session = real failure
-          if (!session?.user) {
-            console.error('❌ No tokens and no session found');
-            setVerificationStatus('error');
-            setErrorMessage('Invalid or expired verification link. Please register again.');
-          } else {
-            // Session exists but email not verified
-            console.error('❌ Session exists but email not verified');
+            console.warn('⚠️ Session exists but email not confirmed');
             setVerificationStatus('error');
             setErrorMessage('Email verification is still pending. Please check your email again.');
+            return;
           }
+        }
+
+        // If we reach here, Supabase didn't auto-detect the session
+        // This might happen if the URL doesn't contain the expected tokens
+        console.error('❌ No session found after verification attempt');
+        console.log('🔍 Checking URL for tokens manually...');
+        
+        // Check what's in the URL
+        const hasAccessToken = hashParams.has('access_token') || searchParams.has('access_token');
+        const hasType = hashParams.get('type') === 'signup' || searchParams.get('type') === 'email';
+        
+        console.log('📊 URL analysis:', { 
+          hasAccessToken, 
+          hasType,
+          hashType: hashParams.get('type'),
+          queryType: searchParams.get('type')
+        });
+
+        if (hasType && !hasAccessToken) {
+          // Type parameter exists but no access token - likely already used link
+          console.warn('⚠️ Type parameter found but no access token - link may be expired');
+          setVerificationStatus('error');
+          setErrorMessage('This verification link has expired or was already used. Please register again.');
+        } else {
+          // No clear indication of what went wrong
+          setVerificationStatus('error');
+          setErrorMessage('Invalid or expired verification link. Please register again or request a new verification email.');
         }
       } catch (err: any) {
         console.error('❌ Verification exception:', err);
@@ -114,21 +125,6 @@ export const EmailVerifiedPage = () => {
 
     verifyEmail();
   }, []);
-
-  // Sign out on mount to ensure clean state
-  useEffect(() => {
-    const signOutIfNeeded = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && verificationStatus === 'success') {
-        await supabase.auth.signOut();
-        setCurrentUser(null);
-      }
-    };
-    
-    if (verificationStatus === 'success') {
-      signOutIfNeeded();
-    }
-  }, [verificationStatus, setCurrentUser]);
 
   // Checking state
   if (verificationStatus === 'checking') {
@@ -211,7 +207,6 @@ export const EmailVerifiedPage = () => {
             <PLVLogo size="md" />
           </div>
 
-          {/* Success Icon - NO CONFETTI */}
           <div className="flex justify-center">
             <div className="bg-accent rounded-full p-6 shadow-lg">
               <CheckCircle2 className="h-16 w-16 text-white" />
