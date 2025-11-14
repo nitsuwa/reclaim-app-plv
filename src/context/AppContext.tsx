@@ -171,6 +171,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.log('🔄 Initializing auth...');
       
       try {
+        // ✅ CHECK URL PARAMETERS FIRST - BEFORE ANYTHING ELSE
+        const searchParams = new URLSearchParams(window.location.search);
+        const queryType = searchParams.get('type');
+        const hash = window.location.hash;
+        let hashType = null;
+        if (hash) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          hashType = hashParams.get('type');
+        }
+        const urlType = queryType || hashType;
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -187,34 +198,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (session?.user) {
-          // ✅ NEVER AUTO-LOGIN IF WE'RE ON FORGOT-PASSWORD PAGE
-          // User is waiting for reset email - don't log them in even if session exists
-          if (currentPageRef.current === 'forgot-password') {
-            console.log('⏭️ On forgot-password page - NOT auto-logging in (ignoring session)');
-            setCurrentUser(null);
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          // ✅ CHECK IF THIS IS A RECOVERY SESSION (password reset flow)
-          // During password reset, Supabase creates a session but user hasn't set new password yet
-          const searchParams = new URLSearchParams(window.location.search);
-          const queryType = searchParams.get('type');
-          const hash = window.location.hash;
-          let hashType = null;
-          if (hash) {
-            const hashParams = new URLSearchParams(hash.substring(1));
-            hashType = hashParams.get('type');
-          }
-          const type = queryType || hashType;
-          
-          const isRecoverySession = type === 'recovery';
-          const isEmailVerification = type === 'email' || type === 'signup';
-          
-          // ✅ IF IT'S A RECOVERY SESSION, DON'T AUTO-LOGIN - SHOW RESET PASSWORD FORM
-          if (isRecoverySession) {
-            console.log('🔑 Recovery link clicked - showing password reset form (NO AUTO-LOGIN)');
+          // ✅ BLOCK AUTO-LOGIN IF URL HAS type=recovery (password reset)
+          if (urlType === 'recovery') {
+            console.log('🔑 Recovery URL detected - showing password reset form (NO AUTO-LOGIN)');
             setCurrentUser(null);
             setCurrentPage('reset-password');
             setLoading(false);
@@ -222,11 +208,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
-          // ✅ IF IT'S EMAIL VERIFICATION, DON'T AUTO-LOGIN - SHOW SUCCESS PAGE
-          if (isEmailVerification) {
-            console.log('📧 Email verification link clicked - showing success page (NO AUTO-LOGIN)');
+          // ✅ BLOCK AUTO-LOGIN IF URL HAS type=email/signup (email verification)
+          if (urlType === 'email' || urlType === 'signup') {
+            console.log('📧 Email verification URL detected - showing success page (NO AUTO-LOGIN)');
             setCurrentUser(null);
             setCurrentPage('email-verified');
+            setLoading(false);
+            initialCheckDone = true;
+            return;
+          }
+          
+          // ✅ BLOCK AUTO-LOGIN IF ON FORGOT-PASSWORD PAGE
+          if (currentPageRef.current === 'forgot-password') {
+            console.log('⏭️ On forgot-password page - NOT auto-logging in (ignoring session)');
+            setCurrentUser(null);
             setLoading(false);
             initialCheckDone = true;
             return;
@@ -322,6 +317,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // ✅ SKIP IF USER WAS ALREADY LOADED FROM getSession (REFRESH CASE)
           if (userLoadedFromGetSession) {
             console.log('⏭️ SIGNED_IN - user already loaded from getSession, skipping');
+            return;
+          }
+          
+          // ✅ CHECK URL PARAMETERS - BLOCK AUTO-LOGIN IF IN AUTH FLOW
+          const searchParams = new URLSearchParams(window.location.search);
+          const queryType = searchParams.get('type');
+          const hash = window.location.hash;
+          let hashType = null;
+          if (hash) {
+            const hashParams = new URLSearchParams(hash.substring(1));
+            hashType = hashParams.get('type');
+          }
+          const urlType = queryType || hashType;
+          
+          if (urlType === 'recovery' || urlType === 'email' || urlType === 'signup') {
+            console.log(`⏭️ SIGNED_IN - URL has type=${urlType}, BLOCKING auto-login`);
             return;
           }
           
