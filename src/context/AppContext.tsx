@@ -195,6 +195,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       console.log('🔄 Initializing auth...');
       
+      // ✅ CHECK LOCALSTORAGE FOR RECOVERY IN PROGRESS (from other tabs)
+      const recoveryInProgress = localStorage.getItem('plv_recovery_in_progress');
+      if (recoveryInProgress === 'true') {
+        console.log('🔒 Recovery in progress in another tab - BLOCKING auto-login');
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+        return;
+      }
+      
       // ✅ CHECK URL FOR AUTH FLOWS FIRST
       const urlParams = new URLSearchParams(window.location.search);
       const urlType = urlParams.get('type');

@@ -25,15 +25,27 @@ export const ResetPasswordPage = () => {
   
   // ✅ BROADCAST AUTH FLOW STATUS TO OTHER TABS
   useEffect(() => {
+    // Set localStorage flag immediately (persists across refreshes)
+    console.log('🔒 Setting recovery flow flag in localStorage');
+    localStorage.setItem('plv_recovery_in_progress', 'true');
+    
     if (typeof BroadcastChannel !== 'undefined') {
       const channel = new BroadcastChannel('plv_auth_flow');
       console.log('📡 Broadcasting: Recovery flow started');
       channel.postMessage({ type: 'AUTH_FLOW_START', flow: 'recovery' });
       
       return () => {
+        console.log('🔓 Removing recovery flow flag from localStorage');
+        localStorage.removeItem('plv_recovery_in_progress');
         console.log('📡 Broadcasting: Recovery flow ended');
         channel.postMessage({ type: 'AUTH_FLOW_END' });
         channel.close();
+      };
+    } else {
+      // Fallback if BroadcastChannel not supported
+      return () => {
+        console.log('🔓 Removing recovery flow flag from localStorage');
+        localStorage.removeItem('plv_recovery_in_progress');
       };
     }
   }, []);
