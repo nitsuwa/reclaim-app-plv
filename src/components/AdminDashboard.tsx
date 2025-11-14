@@ -211,11 +211,15 @@ export const AdminDashboard = () => {
     }
 
     // Create notification for the item reporter (user-perspective)
+    const displayItemType = item.itemType === 'Other' && item.otherItemTypeDetails 
+      ? item.otherItemTypeDetails 
+      : item.itemType;
+      
     await createNotification({
       userId: item.reportedBy,
       message: approve 
-        ? `Your reported item "${item.itemType}" has been verified and published to the Lost & Found Board` 
-        : `Your reported item "${item.itemType}" was rejected`,
+        ? `Your reported item "${displayItemType}" has been verified and published to the Lost & Found Board` 
+        : `Your reported item "${displayItemType}" was rejected`,
       type: approve ? 'item_verified' : 'item_rejected',
       relatedItemId: item.id,
     });
@@ -229,7 +233,7 @@ export const AdminDashboard = () => {
       targetUserId: item.reportedBy,
       targetUserName: item.reporterName || 'Unknown',
       details: {
-        itemType: item.itemType,
+        itemType: displayItemType,
         location: item.location,
         reportedBy: item.reporterName || 'Unknown'
       }

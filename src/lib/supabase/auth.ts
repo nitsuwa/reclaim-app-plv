@@ -318,6 +318,12 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
       };
     }
 
+    // ✅ CLEAR ALL FAILED ATTEMPTS ON SUCCESSFUL LOGIN
+    await supabase
+      .from('login_attempts')
+      .delete()
+      .eq('student_id', studentId);
+
     // ✅ RECORD SUCCESSFUL ATTEMPT
     await supabase.from('login_attempts').insert({
       student_id: studentId,

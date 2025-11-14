@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { useApp } from '../context/AppContext';
 import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { PLVLogo } from './PLVLogo';
-import { toast } from 'sonner';
+import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
 import { supabase } from '../lib/supabase/client';
@@ -108,6 +108,26 @@ export const ResetPasswordPage = () => {
       return;
     }
 
+    if (!/[a-z]/.test(newPassword)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      setError('Password must contain at least one uppercase letter');
+      return;
+    }
+
+    if (!/\d/.test(newPassword)) {
+      setError('Password must contain at least one number');
+      return;
+    }
+
+    if (!/[!@#$%^&*]/.test(newPassword)) {
+      setError('Password must contain at least one special character (!@#$%^&*)');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -134,9 +154,6 @@ export const ResetPasswordPage = () => {
       
       // Sign out the user so they can log in with new password
       await supabase.auth.signOut();
-      
-      // ✅ CLEAR THE URL - Remove ?type=recovery
-      window.history.replaceState(null, '', window.location.pathname);
       
       setStep(2);
       setIsLoading(false);
@@ -276,7 +293,7 @@ export const ResetPasswordPage = () => {
                 </button>
               </div>
               {newPassword && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Password strength:</span>
                     <span className={`font-medium ${
@@ -287,6 +304,29 @@ export const ResetPasswordPage = () => {
                     }`}>{passwordStrength.label}</span>
                   </div>
                   <Progress value={passwordStrength.strength} className="h-2" />
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Requirements:</p>
+                    <p className={`text-xs flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {newPassword.length >= 8 ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      At least 8 characters
+                    </p>
+                    <p className={`text-xs flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {/[a-z]/.test(newPassword) ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      One lowercase letter
+                    </p>
+                    <p className={`text-xs flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {/[A-Z]/.test(newPassword) ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      One uppercase letter
+                    </p>
+                    <p className={`text-xs flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {/\d/.test(newPassword) ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      One number
+                    </p>
+                    <p className={`text-xs flex items-center gap-1 ${/[!@#$%^&*]/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {/[!@#$%^&*]/.test(newPassword) ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      One special character (!@#$%^&*)
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

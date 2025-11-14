@@ -143,15 +143,16 @@ export const ReportItemForm = () => {
 
     console.log('✅ Item reported successfully:', result.data);
     
-    // Add activity log
+    // Add activity log - Use custom item type if "Other" was selected
+    const displayItemType = itemData.itemType === 'Other' ? itemData.otherItemTypeDetails : itemData.itemType;
     const displayLocation = itemData.location === 'Other' ? itemData.otherLocationDetails : itemData.location;
     await addActivityLog({
       userId: currentUser.id,
       userName: currentUser.fullName,
       action: 'item_reported',
       itemId: result.data?.id || '',
-      itemType: itemData.itemType,
-      details: `Reported found item: ${itemData.itemType} at ${displayLocation}`
+      itemType: displayItemType,
+      details: `Reported found item: ${displayItemType} at ${displayLocation}`
     });
     
     toast.success('Item reported successfully!');
@@ -267,7 +268,7 @@ export const ReportItemForm = () => {
 
               {formData.itemType === 'Other' && (
                 <div className="space-y-2">
-                  <Label htmlFor="otherItemTypeDetails">Item Description *</Label>
+                  <Label htmlFor="otherItemTypeDetails">Specify Item Type *</Label>
                   <Input
                     id="otherItemTypeDetails"
                     placeholder="Describe the item (e.g., Red umbrella, Calculator, etc.)"
