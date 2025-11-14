@@ -187,6 +187,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (session?.user) {
+          // ✅ NEVER AUTO-LOGIN IF WE'RE ON FORGOT-PASSWORD PAGE
+          // User is waiting for reset email - don't log them in even if session exists
+          if (currentPageRef.current === 'forgot-password') {
+            console.log('⏭️ On forgot-password page - NOT auto-logging in (ignoring session)');
+            setCurrentUser(null);
+            setLoading(false);
+            initialCheckDone = true;
+            return;
+          }
+          
           // ✅ CHECK IF THIS IS A RECOVERY SESSION (password reset flow)
           // During password reset, Supabase creates a session but user hasn't set new password yet
           const searchParams = new URLSearchParams(window.location.search);
