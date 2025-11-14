@@ -197,8 +197,9 @@ export const ResetPasswordPage = () => {
       console.log('📢 Setting localStorage flag: plv_password_reset_complete');
       localStorage.setItem('plv_password_reset_complete', 'true');
       
-      // Sign out the user so they can log in with new password
-      await supabase.auth.signOut();
+      // ✅ DON'T SIGN OUT - just show success page
+      // Signing out would trigger a new session from the recovery token
+      console.log('✅ Password reset complete - showing success page');
       
       // ✅ CLEAR URL PARAMETERS after successful reset
       window.history.replaceState(null, '', window.location.pathname);

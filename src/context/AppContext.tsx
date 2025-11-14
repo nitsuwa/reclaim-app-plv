@@ -175,7 +175,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         if (!mounted) return;
         
-        initialCheckDone = true;
         console.log('📡 getSession result:', session ? 'Session found' : 'No session');
         
         if (error) {
@@ -183,6 +182,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           setCurrentUser(null);
           setCurrentPage('landing');
           setLoading(false);
+          initialCheckDone = true;
           return;
         }
         
@@ -208,6 +208,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCurrentUser(null);
             setCurrentPage('reset-password');
             setLoading(false);
+            initialCheckDone = true;
             return;
           }
           
@@ -217,6 +218,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCurrentUser(null);
             setCurrentPage('email-verified');
             setLoading(false);
+            initialCheckDone = true;
             return;
           }
           
@@ -253,9 +255,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCurrentPage('landing');
           }
           setLoading(false);
+          initialCheckDone = true;
         } else {
           console.log('🚪 No session');
           setLoading(false);
+          initialCheckDone = true;
         }
       } catch (error) {
         console.error('❌ Init auth error:', error);
@@ -268,13 +272,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    // Safety timeout - reduced to 3 seconds
+    // Safety timeout - increased to 5 seconds and only triggers if auth hasn't completed
     const safetyTimeout = setTimeout(() => {
-      if (mounted && loading) {
+      if (mounted && loading && !initialCheckDone) {
         console.warn('⏰ Safety timeout - completing auth');
         setLoading(false);
+        initialCheckDone = true;
       }
-    }, 3000);
+    }, 5000);
 
     initAuth();
 
@@ -313,6 +318,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // ✅ SKIP IF ON FORGOT-PASSWORD PAGE (prevent auto-login when reset link is clicked in another tab)
           if (currentPageRef.current === 'forgot-password') {
             console.log('⏭️ SIGNED_IN - on forgot-password page, ignoring session from other tab');
+            return;
+          }
+          
+          // ✅ SKIP IF ON RESET-PASSWORD PAGE (prevent auto-login during password reset)
+          if (currentPageRef.current === 'reset-password') {
+            console.log('⏭️ SIGNED_IN - on reset-password page, ignoring auto-login');
+            return;
+          }
+          
+          // ✅ SKIP IF ON EMAIL-VERIFIED PAGE (prevent auto-login during email verification)
+          if (currentPageRef.current === 'email-verified') {
+            console.log('⏭️ SIGNED_IN - on email-verified page, ignoring auto-login');
             return;
           }
           
