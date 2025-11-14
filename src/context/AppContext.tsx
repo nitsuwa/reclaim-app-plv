@@ -325,21 +325,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
-          // ✅ SKIP IF ON FORGOT-PASSWORD PAGE (prevent auto-login when reset link is clicked in another tab)
-          if (currentPageRef.current === 'forgot-password') {
-            console.log('⏭️ SIGNED_IN - on forgot-password page, ignoring session from other tab');
-            return;
-          }
-          
-          // ✅ SKIP IF ON RESET-PASSWORD PAGE (prevent auto-login during password reset)
-          if (currentPageRef.current === 'reset-password') {
-            console.log('⏭️ SIGNED_IN - on reset-password page, ignoring auto-login');
-            return;
-          }
-          
-          // ✅ SKIP IF ON EMAIL-VERIFIED PAGE (prevent auto-login during email verification)
-          if (currentPageRef.current === 'email-verified') {
-            console.log('⏭️ SIGNED_IN - on email-verified page, ignoring auto-login');
+          // ✅ BLOCK AUTO-LOGIN IF ON ANY AUTH FLOW PAGES
+          const authFlowPages = ['forgot-password', 'reset-password', 'email-verified'];
+          if (authFlowPages.includes(currentPageRef.current)) {
+            console.log(`⏭️ SIGNED_IN - on ${currentPageRef.current} page, BLOCKING auto-login from other tab`);
             return;
           }
           
