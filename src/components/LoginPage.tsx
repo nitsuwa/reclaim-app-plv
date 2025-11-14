@@ -74,7 +74,7 @@ export const LoginPage = () => {
 
       <Card className="w-full max-w-md shadow-2xl relative z-10 border border-primary/10 bg-white">
         <CardHeader className="space-y-4 pb-6 border-b-0">
-          <PLVLogo size="md" />
+          <PLVLogo size="md" variant="primary" />
           <div className="text-center space-y-2">
             <CardTitle className="text-primary">Welcome Back</CardTitle>
             <CardDescription>

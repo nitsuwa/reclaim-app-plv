@@ -169,15 +169,15 @@ export const RegisterPage = () => {
       <Button
         variant="ghost"
         onClick={() => setCurrentPage('landing')}
-        className="absolute top-4 left-4 z-20 text-white hover:bg-white/10"
+        className="absolute top-4 left-4 z-20 text-white hover:bg-white/10 mb-4"
       >
         <ArrowLeft className="h-5 w-5 mr-2" />
         Back to Home
       </Button>
 
-      <Card className="w-full max-w-md shadow-2xl relative z-10 border border-primary/10 bg-white max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-md shadow-2xl relative z-10 border border-primary/10 bg-white max-h-[90vh] overflow-y-auto mt-16">
         <CardHeader className="space-y-4 pb-6 border-b-0">
-          <PLVLogo size="md" />
+          <PLVLogo size="md" variant="primary" />
           <div className="text-center space-y-2">
             <CardTitle className="text-primary">Create Account</CardTitle>
             <CardDescription>Register for PLV Lost & Found System</CardDescription>

@@ -25,7 +25,13 @@ export const getVerifiedItems = async (filters?: {
   try {
     let query = supabase
       .from('lost_items')
-      .select('*')
+      .select(`
+        *,
+        users!lost_items_reported_by_fkey (
+          full_name,
+          student_id
+        )
+      `)
       .eq('status', 'verified')
       .order('created_at', { ascending: false });
 
@@ -64,6 +70,8 @@ export const getVerifiedItems = async (filters?: {
       description: item.description || undefined,
       securityQuestions: item.security_questions as SecurityQuestion[],
       reportedBy: item.reported_by,
+      reporterName: item.users?.full_name,
+      reporterStudentId: item.users?.student_id,
       status: item.status as 'pending' | 'verified' | 'claimed',
       reportedAt: item.created_at,
     }));
@@ -84,7 +92,13 @@ export const getClaimedItems = async () => {
   try {
     const { data, error } = await supabase
       .from('lost_items')
-      .select('*')
+      .select(`
+        *,
+        users!lost_items_reported_by_fkey (
+          full_name,
+          student_id
+        )
+      `)
       .eq('status', 'claimed')
       .order('created_at', { ascending: false });
 
@@ -104,6 +118,8 @@ export const getClaimedItems = async () => {
       description: item.description || undefined,
       securityQuestions: item.security_questions as SecurityQuestion[],
       reportedBy: item.reported_by,
+      reporterName: item.users?.full_name,
+      reporterStudentId: item.users?.student_id,
       status: item.status as 'pending' | 'verified' | 'claimed',
       reportedAt: item.created_at,
     }));

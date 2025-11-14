@@ -8,6 +8,8 @@ export const Header = () => {
   const { currentUser, setCurrentUser, setCurrentPage, currentPage, getUnviewedNotificationCount } = useApp();
 
   const handleLogout = async () => {
+    // Clear admin tab state before logging out
+    localStorage.removeItem('admin-active-tab');
     await signOut();
     // The auth listener will handle clearing state and redirecting
   };

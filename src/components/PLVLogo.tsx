@@ -1,13 +1,23 @@
-export const PLVLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
+export const PLVLogo = ({ 
+  size = 'md', 
+  variant = 'white' 
+}: { 
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'white' | 'primary';
+}) => {
   const sizeClasses = {
     sm: 'w-12 h-12',
     md: 'w-16 h-16',
     lg: 'w-24 h-24'
   };
 
+  const bgClasses = variant === 'primary' 
+    ? 'bg-primary border-2 border-primary/20' 
+    : 'bg-white border-2 border-primary/10';
+
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className={`${sizeClasses[size]} bg-primary rounded-full flex items-center justify-center shadow-md`}>
+      <div className={`${sizeClasses[size]} ${bgClasses} rounded-full flex items-center justify-center shadow-md`}>
         <svg
           viewBox="0 0 100 100"
           fill="none"
@@ -18,7 +28,7 @@ export const PLVLogo = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
           <path
             d="M50 10 L20 25 L20 50 Q20 75 50 90 Q80 75 80 50 L80 25 Z"
             fill="#4da6ff"
-            stroke="#ffffff"
+            stroke="#003366"
             strokeWidth="2"
           />
           {/* Book/Pages */}

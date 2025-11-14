@@ -965,27 +965,50 @@ export const AdminDashboard = () => {
 
                       {/* Claim Information */}
                       <div className="space-y-4">
-                        <div className="bg-muted/30 border border-border p-4 rounded-lg space-y-3">
-                          <div className="space-y-2">
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Item:</span>{' '}
-                              <span className="font-semibold text-foreground">
+                        {/* Original Item Photo & Details */}
+                        <div className="border border-border rounded-lg p-4 space-y-3 bg-muted/30">
+                          <h4 className="font-semibold text-primary">Original Item Report</h4>
+                          {item.photoUrl && (
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-2">Item Photo (When Reported)</p>
+                              <img 
+                                src={item.photoUrl} 
+                                alt="Original item" 
+                                className="w-full max-w-md h-64 object-cover rounded-lg border-2 border-border" 
+                              />
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Item Type</p>
+                              <p className="text-sm font-medium text-primary">
                                 {item.itemType}
                                 {item.otherItemTypeDetails && ` - ${item.otherItemTypeDetails}`}
-                              </span>
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Location Found:</span>{' '}
-                              <span className="text-foreground">{item.location}</span>
-                            </p>
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Date Found:</span>{' '}
-                              <span className="text-foreground">{new Date(item.dateFound).toLocaleDateString()}</span>
-                            </p>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Location Found</p>
+                              <p className="text-sm font-medium">{item.location}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Date Found</p>
+                              <p className="text-sm font-medium">{new Date(item.dateFound).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Reported By</p>
+                              <p className="text-sm font-medium">{item.reporterName || 'N/A'}</p>
+                            </div>
                           </div>
+                          {item.description && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Description</p>
+                              <p className="text-sm">{item.description}</p>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="space-y-2">
+                        {/* Claimant Info */}
+                        <div className="bg-muted/30 border border-border p-4 rounded-lg space-y-2">
                           <p className="text-sm leading-relaxed">
                             <span className="text-muted-foreground">Claimant:</span>{' '}
                             <span className="text-foreground uppercase tracking-wide">{lookupClaim.claimantName}</span>
@@ -1008,9 +1031,21 @@ export const AdminDashboard = () => {
                           </p>
                         </div>
 
+                        {/* Claimant's Proof Photo */}
+                        {lookupClaim.proofPhotoUrl && (
+                          <div className="border border-accent/30 rounded-lg p-4 bg-accent/5">
+                            <h4 className="font-semibold text-accent mb-2">Claimant's Proof Photo</h4>
+                            <img 
+                              src={lookupClaim.proofPhotoUrl} 
+                              alt="Proof of ownership" 
+                              className="w-full max-w-md h-64 object-cover rounded-lg border-2 border-accent/30"
+                            />
+                          </div>
+                        )}
+
                         {/* Security Answers */}
                         <div className="space-y-2">
-                          <p className="text-sm">Security Answers:</p>
+                          <p className="text-sm font-semibold">Security Questions & Answers:</p>
                           {lookupClaim.answers.map((answer, idx) => (
                             <div key={idx} className="text-sm bg-card border border-border p-3 rounded">
                               <p className="text-muted-foreground mb-1">
@@ -1022,18 +1057,6 @@ export const AdminDashboard = () => {
                             </div>
                           ))}
                         </div>
-
-                        {/* Proof Photo if available */}
-                        {lookupClaim.proofPhotoUrl && (
-                          <div className="space-y-2">
-                            <p className="text-sm">Proof Photo:</p>
-                            <img 
-                              src={lookupClaim.proofPhotoUrl} 
-                              alt="Proof of ownership" 
-                              className="w-full max-w-md rounded-lg border border-border"
-                            />
-                          </div>
-                        )}
                       </div>
 
                       {/* Action Buttons for Pending Claims */}
@@ -1385,30 +1408,59 @@ export const AdminDashboard = () => {
                 </AlertDescription>
               </Alert>
 
+              {/* Original Item Photo & Details */}
+              <div className="border border-border rounded-lg p-4 space-y-3 bg-muted/30">
+                <h4 className="font-semibold text-primary">Original Item Report</h4>
+                {selectedClaimItem.photoUrl && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Item Photo (When Reported)</p>
+                    <img 
+                      src={selectedClaimItem.photoUrl} 
+                      alt="Original item" 
+                      className="w-full h-64 object-cover rounded-lg border-2 border-border" 
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Item Type</p>
+                    <p className="text-sm font-medium text-primary">
+                      {selectedClaimItem.itemType}
+                      {selectedClaimItem.otherItemTypeDetails && ` - ${selectedClaimItem.otherItemTypeDetails}`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Location Found</p>
+                    <p className="text-sm font-medium">{selectedClaimItem.location}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date Found</p>
+                    <p className="text-sm font-medium">{new Date(selectedClaimItem.dateFound).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Reported By</p>
+                    <p className="text-sm font-medium">{selectedClaimItem.reporterName || 'N/A'}</p>
+                  </div>
+                </div>
+                {selectedClaimItem.description && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Description</p>
+                    <p className="text-sm">{selectedClaimItem.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Claimant's Proof Photo */}
               {selectedClaimData.proofPhotoUrl && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">Proof Photo</p>
+                <div className="border border-accent/30 rounded-lg p-4 bg-accent/5">
+                  <h4 className="font-semibold text-accent mb-2">Claimant's Proof Photo</h4>
                   <img 
                     src={selectedClaimData.proofPhotoUrl} 
                     alt="Claim proof" 
-                    className="w-full h-64 object-cover rounded-lg border-2 border-border" 
+                    className="w-full h-64 object-cover rounded-lg border-2 border-accent/30" 
                   />
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground mb-1">Item Type</p>
-                  <p className="text-primary break-words overflow-wrap-anywhere">
-                    {selectedClaimItem.itemType}
-                    {selectedClaimItem.otherItemTypeDetails && ` - ${selectedClaimItem.otherItemTypeDetails}`}
-                  </p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground mb-1">Location</p>
-                  <p className="break-words overflow-wrap-anywhere">{selectedClaimItem.location}</p>
-                </div>
-              </div>
 
               <div className="space-y-3 min-w-0">
                 <p className="text-sm text-muted-foreground">Security Questions & Answers</p>
