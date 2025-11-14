@@ -213,9 +213,10 @@ export const ResetPasswordPage = () => {
         console.log('👋 Signing out user after password reset');
         await supabase.auth.signOut();
         
-        // ✅ CLEAR THE FLAG AFTER SIGNING OUT
-        console.log('🔓 Clearing password reset in progress flag');
+        // ✅ CLEAR ALL FLAGS AFTER SIGNING OUT
+        console.log('🔓 Clearing password reset flags');
         localStorage.removeItem('plv_password_reset_in_progress');
+        localStorage.removeItem('plv_password_reset_complete');
       }, 100);
     } catch (err: any) {
       console.error('❌ Unexpected error:', err);

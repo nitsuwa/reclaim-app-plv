@@ -358,21 +358,21 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
     }
 
     // ✅ AUTO-UPDATE is_verified if email is confirmed but database shows false
-    if (authData.user.email_confirmed_at && !profile.is_verified) {
-      console.log('✅ Email is confirmed in auth but is_verified is false - updating database...');
-      const { error: updateError } = await supabase
+    if (authData.user.email_confirmed_at && profile.is_verified === false) {
+      console.log('✅ Auto-updating is_verified to true');
+      await supabase
         .from('users')
         .update({ is_verified: true })
-        .eq('auth_id', authData.user.id);
+        .eq('id', profile.id);
       
-      if (updateError) {
-        console.error('❌ Failed to update is_verified:', updateError);
-        // Don't fail login - just log the error
-      } else {
-        console.log('✅ Database is_verified updated to true');
-        profile.is_verified = true; // Update local profile object
-      }
+      profile.is_verified = true;
     }
+    
+    // ✅ CLEAR ALL AUTH FLOW FLAGS
+    console.log('🧹 Clearing auth flow flags');
+    localStorage.removeItem('plv_password_reset_in_progress');
+    localStorage.removeItem('plv_email_verification_in_progress');
+    localStorage.removeItem('plv_password_reset_complete');
 
     // Check if account is active
     if (profile.status === 'inactive') {
