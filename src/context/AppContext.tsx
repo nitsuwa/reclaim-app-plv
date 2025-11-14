@@ -52,6 +52,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [unviewedNotificationCount, setUnviewedNotificationCount] = useState<number>(0);
   
+  // ✅ USE REF TO TRACK CURRENT PAGE (for auth state listener to access latest value)
+  const currentPageRef = React.useRef<string>('landing');
+  
   // ✅ CHECK FOR RECOVERY FLOW FIRST, THEN RESTORE FROM LOCALSTORAGE
   const [currentPage, setCurrentPageState] = useState<string>(() => {
     // Check URL for recovery/email verification flows
@@ -69,9 +72,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     if (type === 'recovery') {
       console.log('🔑 Password recovery detected - setting page to reset-password');
+      currentPageRef.current = 'reset-password';
       return 'reset-password';
     } else if (type === 'email' || type === 'signup') {
       console.log('📧 Email verification detected - setting page to email-verified');
+      currentPageRef.current = 'email-verified';
       return 'email-verified';
     }
     
@@ -84,9 +89,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!saved || nonRestorablePages.includes(saved)) {
       console.log('🔄 Clearing non-restorable page from localStorage:', saved);
       localStorage.removeItem('plv_current_page');
+      currentPageRef.current = 'landing';
       return 'landing';
     }
     
+    currentPageRef.current = saved;
     return saved;
   });
   
@@ -100,6 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const setCurrentPage = (page: string) => {
     console.log('📝 Setting page to:', page);
     setCurrentPageState(page);
+    currentPageRef.current = page;
     
     // Pages that should NOT be persisted in localStorage
     // These include: landing page, auth flow pages (reset-password, email-verified)
@@ -283,7 +291,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
           
           // ✅ SKIP IF ON FORGOT-PASSWORD PAGE (prevent auto-login when reset link is clicked in another tab)
-          if (currentPage === 'forgot-password') {
+          if (currentPageRef.current === 'forgot-password') {
             console.log('⏭️ SIGNED_IN - on forgot-password page, ignoring session from other tab');
             return;
           }
