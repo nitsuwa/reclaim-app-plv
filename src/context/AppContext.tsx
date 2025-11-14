@@ -55,6 +55,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // ✅ USE REF TO TRACK CURRENT PAGE (for auth state listener to access latest value)
   const currentPageRef = React.useRef<string>('landing');
   
+  // ✅ BROADCAST CHANNEL FOR CROSS-TAB COMMUNICATION
+  const authFlowChannelRef = React.useRef<BroadcastChannel | null>(null);
+  const isInAuthFlowRef = React.useRef(false);
+  
+  // Initialize BroadcastChannel
+  React.useEffect(() => {
+    if (typeof BroadcastChannel !== 'undefined') {
+      authFlowChannelRef.current = new BroadcastChannel('plv_auth_flow');
+      
+      // Listen for messages from other tabs
+      authFlowChannelRef.current.onmessage = (event) => {
+        if (event.data.type === 'AUTH_FLOW_START') {
+          console.log('🔔 Other tab started auth flow:', event.data.flow);
+          isInAuthFlowRef.current = true;
+        } else if (event.data.type === 'AUTH_FLOW_END') {
+          console.log('🔔 Other tab ended auth flow');
+          isInAuthFlowRef.current = false;
+        }
+      };
+      
+      return () => {
+        authFlowChannelRef.current?.close();
+      };
+    }
+  }, []);
+  
   // ✅ CHECK FOR RECOVERY FLOW FIRST, THEN RESTORE FROM LOCALSTORAGE
   const [currentPage, setCurrentPageState] = useState<string>(() => {
     // Check URL for recovery/email verification flows
@@ -303,6 +329,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
+          // ✅ CHECK IF ANOTHER TAB IS IN AUTH FLOW (via BroadcastChannel)
+          if (isInAuthFlowRef.current) {
+            console.log(`⏭️ SIGNED_IN - another tab is in auth flow, BLOCKING auto-login`);
+            return;
+          }
+          
           // ✅ CHECK URL PARAMETERS - BLOCK AUTO-LOGIN IF IN AUTH FLOW
           const searchParams = new URLSearchParams(window.location.search);
           const queryType = searchParams.get('type');
@@ -454,6 +486,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       refreshNotificationCount();
     }
   }, [currentUser]);
+
+  // ✅ NAVIGATE TO DEFAULT PAGE WHEN USER LOGS IN (from LoginPage.setCurrentUser)
+  useEffect(() => {
+    if (currentUser && !loading) {
+      // Only navigate if we're on an auth page (login, register, etc.)
+      const authPages = ['login', 'register', 'forgot-password', 'landing'];
+      if (authPages.includes(currentPageRef.current)) {
+        const defaultPage = currentUser.role === 'admin' ? 'admin' : 'board';
+        console.log('🔀 User logged in - navigating to:', defaultPage);
+        setCurrentPage(defaultPage);
+      }
+    }
+  }, [currentUser, loading]);
 
   // Refresh notification count periodically for non-admin users
   useEffect(() => {

@@ -12,15 +12,31 @@ import { Progress } from './ui/progress';
 import { supabase } from '../lib/supabase/client';
 
 export const ResetPasswordPage = () => {
-  const { setCurrentPage, currentUser } = useApp();
-  const [step, setStep] = useState(1); // 1: Form, 2: Success
+  const { setCurrentPage } = useApp();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionValid, setSessionValid] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [sessionValid, setSessionValid] = useState(true);
+  const [step, setStep] = useState(1); // 1: Reset form, 2: Success
+  
+  // ✅ BROADCAST AUTH FLOW STATUS TO OTHER TABS
+  useEffect(() => {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const channel = new BroadcastChannel('plv_auth_flow');
+      console.log('📡 Broadcasting: Recovery flow started');
+      channel.postMessage({ type: 'AUTH_FLOW_START', flow: 'recovery' });
+      
+      return () => {
+        console.log('📡 Broadcasting: Recovery flow ended');
+        channel.postMessage({ type: 'AUTH_FLOW_END' });
+        channel.close();
+      };
+    }
+  }, []);
 
   // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
   useEffect(() => {
@@ -43,21 +59,6 @@ export const ResetPasswordPage = () => {
 
     checkSession();
   }, []);
-
-  const getPasswordStrength = () => {
-    if (!newPassword) return { strength: 0, label: '', color: '' };
-
-    let strength = 0;
-    if (newPassword.length >= 8) strength += 25;
-    if (newPassword.length >= 12) strength += 25;
-    if (/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)) strength += 25;
-    if (/\d/.test(newPassword) && /[!@#$%^&*]/.test(newPassword)) strength += 25;
-
-    if (strength <= 25) return { strength, label: 'Weak', color: 'bg-destructive' };
-    if (strength <= 50) return { strength, label: 'Fair', color: 'bg-accent' };
-    if (strength <= 75) return { strength, label: 'Good', color: 'bg-secondary' };
-    return { strength, label: 'Strong', color: 'bg-green-500' };
-  };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +99,7 @@ export const ResetPasswordPage = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsUpdating(true);
 
     try {
       console.log('🔄 Updating password...');
@@ -108,7 +109,7 @@ export const ResetPasswordPage = () => {
       
       if (!session) {
         setError('Session expired. Please request a new password reset link.');
-        setIsLoading(false);
+        setIsUpdating(false);
         return;
       }
 
@@ -119,7 +120,7 @@ export const ResetPasswordPage = () => {
       if (error) {
         console.error('❌ Password update error:', error);
         setError(error.message || 'Failed to reset password');
-        setIsLoading(false);
+        setIsUpdating(false);
         return;
       }
 
@@ -167,7 +168,7 @@ export const ResetPasswordPage = () => {
       
       // ✅ SET STEP TO SUCCESS PAGE FIRST
       setStep(2);
-      setIsLoading(false);
+      setIsUpdating(false);
       
       // ✅ THEN SIGN OUT THE USER (after a small delay to ensure UI updates)
       setTimeout(async () => {
@@ -182,8 +183,37 @@ export const ResetPasswordPage = () => {
     } catch (err: any) {
       console.error('❌ Unexpected error:', err);
       setError(err.message || 'Failed to reset password');
-      setIsLoading(false);
+      setIsUpdating(false);
     }
+  };
+
+  const getPasswordStrength = () => {
+    if (!newPassword) return { strength: 0, label: '', color: '' };
+
+    let strength = 0;
+    if (newPassword.length >= 8) strength += 25;
+    if (/[a-z]/.test(newPassword)) strength += 15;
+    if (/[A-Z]/.test(newPassword)) strength += 15;
+    if (/\d/.test(newPassword)) strength += 20;
+    if (/[!@#$%^&*]/.test(newPassword)) strength += 25;
+
+    let label = '';
+    let color = '';
+    if (strength <= 25) {
+      label = 'Weak';
+      color = 'text-destructive';
+    } else if (strength <= 50) {
+      label = 'Fair';
+      color = 'text-accent';
+    } else if (strength <= 75) {
+      label = 'Good';
+      color = 'text-secondary';
+    } else {
+      label = 'Strong';
+      color = 'text-green-600';
+    }
+
+    return { strength, label, color };
   };
 
   const passwordStrength = getPasswordStrength();
@@ -285,7 +315,7 @@ export const ResetPasswordPage = () => {
           <div className="text-center space-y-2">
             <CardTitle className="text-primary">Create New Password</CardTitle>
             <CardDescription>
-              {currentUser ? `Resetting password for ${currentUser.email}` : 'Enter your new password below'}
+              Enter your new password below
             </CardDescription>
           </div>
         </CardHeader>
@@ -327,12 +357,7 @@ export const ResetPasswordPage = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Password strength:</span>
-                    <span className={`font-medium ${
-                      passwordStrength.strength <= 25 ? 'text-destructive' :
-                      passwordStrength.strength <= 50 ? 'text-accent' :
-                      passwordStrength.strength <= 75 ? 'text-secondary' :
-                      'text-green-600'
-                    }`}>{passwordStrength.label}</span>
+                    <span className={`font-medium ${passwordStrength.color}`}>{passwordStrength.label}</span>
                   </div>
                   <Progress value={passwordStrength.strength} className="h-2" />
                   <div className="bg-muted/50 rounded-lg p-3 space-y-1">

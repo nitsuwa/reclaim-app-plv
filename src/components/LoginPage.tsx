@@ -45,6 +45,9 @@ export const LoginPage = () => {
         description: `Welcome back, ${result.user?.fullName}!`
       });
 
+      // Set user in context (triggers navigation via AppContext effect)
+      setCurrentUser(result.user!);
+      
       // Let AppContext auth listener handle navigation automatically
       setIsLoading(false);
     } catch (err: any) {
