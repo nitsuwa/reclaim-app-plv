@@ -282,6 +282,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
+          // ✅ SKIP IF ON FORGOT-PASSWORD PAGE (prevent auto-login when reset link is clicked in another tab)
+          if (currentPage === 'forgot-password') {
+            console.log('⏭️ SIGNED_IN - on forgot-password page, ignoring session from other tab');
+            return;
+          }
+          
           console.log('✅ SIGNED_IN - loading profile (fresh login)...');
           
           const user = await fetchUserProfile(session.user.id);
