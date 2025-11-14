@@ -201,14 +201,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           
           const isRecoverySession = type === 'recovery';
           
-          // ✅ IF IT'S A RECOVERY SESSION, MARK IT IN SESSION STORAGE (shared across tabs)
+          // ✅ IF IT'S A RECOVERY SESSION, MARK IT IN LOCALSTORAGE (shared across tabs)
           if (isRecoverySession) {
-            console.log('🔑 Recovery session detected - marking in sessionStorage');
-            sessionStorage.setItem('plv_recovery_in_progress', 'true');
+            console.log('🔑 Recovery session detected - marking in localStorage');
+            localStorage.setItem('plv_recovery_in_progress', 'true');
           }
           
           // ✅ CHECK IF RECOVERY IS IN PROGRESS (even without URL params)
-          const recoveryInProgress = sessionStorage.getItem('plv_recovery_in_progress') === 'true';
+          const recoveryInProgress = localStorage.getItem('plv_recovery_in_progress') === 'true';
           
           // ✅ IF RECOVERY IS IN PROGRESS, DON'T AUTO-LOGIN
           if (isRecoverySession || recoveryInProgress) {
