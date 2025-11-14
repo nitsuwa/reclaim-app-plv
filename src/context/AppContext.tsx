@@ -236,23 +236,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCurrentUser(user);
             userLoadedFromGetSession = true; // ✅ MARK THAT WE LOADED USER
             
-            // ✅ CHECK IF WE'RE IN EMAIL VERIFICATION FLOW
-            if (type === 'email' || type === 'signup') {
-              console.log('📧 Email verification flow active - staying on email-verified');
-              setCurrentPage('email-verified');
+            // ✅ ONLY SET DEFAULT PAGE IF ON PUBLIC/LANDING PAGES
+            const savedPage = localStorage.getItem('plv_current_page');
+            const publicPages = ['landing', 'login', 'register', 'forgot-password', 'reset-password', 'email-verified'];
+            
+            if (!savedPage || publicPages.includes(savedPage)) {
+              const defaultPage = user.role === 'admin' ? 'admin' : 'board';
+              console.log('🔀 Setting default page:', defaultPage);
+              setCurrentPage(defaultPage);
             } else {
-              // ✅ ONLY SET DEFAULT PAGE IF ON PUBLIC/LANDING PAGES
-              const savedPage = localStorage.getItem('plv_current_page');
-              const publicPages = ['landing', 'login', 'register', 'forgot-password', 'reset-password', 'email-verified'];
-              
-              if (!savedPage || publicPages.includes(savedPage)) {
-                const defaultPage = user.role === 'admin' ? 'admin' : 'board';
-                console.log('🔀 Setting default page:', defaultPage);
-                setCurrentPage(defaultPage);
-              } else {
-                console.log('🔀 Keeping saved page:', savedPage);
-                // Page is already set from localStorage initialization
-              }
+              console.log('🔀 Keeping saved page:', savedPage);
+              // Page is already set from localStorage initialization
             }
           } else {
             console.log('❌ No profile found');

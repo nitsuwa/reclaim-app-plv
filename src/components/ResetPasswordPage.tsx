@@ -197,9 +197,9 @@ export const ResetPasswordPage = () => {
       console.log('📢 Setting localStorage flag: plv_password_reset_complete');
       localStorage.setItem('plv_password_reset_complete', 'true');
       
-      // ✅ DON'T SIGN OUT - just show success page
-      // Signing out would trigger a new session from the recovery token
-      console.log('✅ Password reset complete - showing success page');
+      // ✅ SIGN OUT THE USER SO THEY MUST LOGIN MANUALLY
+      console.log('👋 Signing out user after password reset');
+      await supabase.auth.signOut();
       
       // ✅ CLEAR URL PARAMETERS after successful reset
       window.history.replaceState(null, '', window.location.pathname);
@@ -292,13 +292,6 @@ export const ResetPasswordPage = () => {
                 className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md"
               >
                 Close This Tab
-              </Button>
-              <Button 
-                onClick={() => setCurrentPage('login')} 
-                variant="outline"
-                className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/10"
-              >
-                Or Go to Login
               </Button>
             </div>
           </CardContent>

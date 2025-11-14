@@ -65,18 +65,15 @@ export const EmailVerifiedPage = () => {
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              You can now log in and access all features of the PLV Lost & Found System.
+              You can now close this tab and log in to access all features of the PLV Lost & Found System.
             </p>
           </div>
 
           <Button 
-            onClick={() => {
-              setCurrentUser(null);
-              setCurrentPage('login');
-            }}
+            onClick={() => window.close()}
             className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md transition-all hover:shadow-lg"
           >
-            Go to Login
+            Close This Tab
           </Button>
         </CardContent>
       </Card>
