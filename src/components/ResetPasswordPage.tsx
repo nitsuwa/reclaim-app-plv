@@ -197,15 +197,18 @@ export const ResetPasswordPage = () => {
       console.log('📢 Setting localStorage flag: plv_password_reset_complete');
       localStorage.setItem('plv_password_reset_complete', 'true');
       
-      // ✅ SIGN OUT THE USER SO THEY MUST LOGIN MANUALLY
-      console.log('👋 Signing out user after password reset');
-      await supabase.auth.signOut();
-      
       // ✅ CLEAR URL PARAMETERS after successful reset
       window.history.replaceState(null, '', window.location.pathname);
       
+      // ✅ SET STEP TO SUCCESS PAGE FIRST
       setStep(2);
       setIsLoading(false);
+      
+      // ✅ THEN SIGN OUT THE USER (after a small delay to ensure UI updates)
+      setTimeout(async () => {
+        console.log('👋 Signing out user after password reset');
+        await supabase.auth.signOut();
+      }, 100);
     } catch (err: any) {
       console.error('❌ Unexpected error:', err);
       setError(err.message || 'Failed to reset password');

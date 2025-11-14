@@ -297,14 +297,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         if (event === 'SIGNED_OUT') {
           console.log('👋 User signed out');
-          userLoadedFromGetSession = false; // ✅ RESET FLAG ON LOGOUT
+          
+          // ✅ DON'T REDIRECT IF ON AUTH FLOW PAGES - let them handle their own navigation
+          const authFlowPages = ['reset-password', 'email-verified'];
+          if (authFlowPages.includes(currentPageRef.current)) {
+            console.log(`⏭️ On ${currentPageRef.current} page - NOT redirecting to landing`);
+            setCurrentUser(null);
+            setLoading(false);
+            return;
+          }
+          
           setCurrentUser(null);
-          setItems([]);
-          setClaims([]);
-          setActivityLogs([]);
-          localStorage.removeItem('plv_current_page'); // ✅ Clear page persistence
-          localStorage.removeItem('admin-active-tab'); // ✅ Clear admin tab persistence
-          setCurrentPage('landing'); // This will also clear localStorage via setCurrentPage
+          setCurrentPage('landing');
           setLoading(false);
         } 
         else if (event === 'SIGNED_IN' && session?.user) {
