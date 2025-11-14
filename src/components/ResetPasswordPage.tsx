@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { useApp } from '../context/AppContext';
+import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PLVLogo } from './PLVLogo';
+import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
-import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { PLVLogo } from './PLVLogo';
-import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase/client';
 
 export const ResetPasswordPage = () => {
@@ -18,9 +19,10 @@ export const ResetPasswordPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionValid, setSessionValid] = useState(false);
-  const [step, setStep] = useState(1); // 1 = form, 2 = success
-
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [sessionValid, setSessionValid] = useState(true);
+  const [step, setStep] = useState(1); // 1: Reset form, 2: Success
+  
   // ✅ BROADCAST AUTH FLOW STATUS TO OTHER TABS
   useEffect(() => {
     // Set localStorage flag immediately (persists across refreshes)
@@ -48,137 +50,202 @@ export const ResetPasswordPage = () => {
     }
   }, []);
 
-  // Check if recovery session exists
+  // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
   useEffect(() => {
     const checkSession = async () => {
-      console.log('🔍 Checking recovery session...');
-      
       try {
+        console.log('🔍 Verifying password reset session...');
+        
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('❌ Session error:', sessionError);
           setError('Invalid or expired reset link. Please request a new one.');
-          setIsLoading(false);
           setSessionValid(false);
+          setIsLoading(false);
           return;
         }
-
+        
         if (!session) {
-          console.log('❌ No session found');
+          console.error('❌ No session found');
           setError('Invalid or expired reset link. Please request a new one.');
-          setIsLoading(false);
           setSessionValid(false);
+          setIsLoading(false);
           return;
         }
-
-        console.log('✅ Valid recovery session found');
+        
+        console.log('✅ Password reset session verified for:', session.user.email);
         setSessionValid(true);
         setIsLoading(false);
       } catch (err) {
-        console.error('❌ Unexpected error:', err);
-        setError('An unexpected error occurred. Please try again.');
-        setIsLoading(false);
+        console.error('❌ Unexpected error checking session:', err);
+        setError('An error occurred. Please try again.');
         setSessionValid(false);
+        setIsLoading(false);
       }
     };
 
     checkSession();
   }, []);
 
-  const getPasswordStrength = (password: string) => {
-    let strength = 0;
-    
-    if (password.length >= 8) strength += 20;
-    if (password.length >= 12) strength += 10;
-    if (/[a-z]/.test(password)) strength += 20;
-    if (/[A-Z]/.test(password)) strength += 20;
-    if (/\d/.test(password)) strength += 15;
-    if (/[!@#$%^&*]/.test(password)) strength += 15;
-    
-    let label = 'Weak';
-    let color = 'text-destructive';
-    
-    if (strength >= 70) {
-      label = 'Strong';
-      color = 'text-green-600';
-    } else if (strength >= 50) {
-      label = 'Medium';
-      color = 'text-yellow-600';
-    }
-    
-    return { strength, label, color };
-  };
-
-  const passwordStrength = getPasswordStrength(newPassword);
-
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate password requirements
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
+    setError('');
+
+    if (!newPassword || !confirmPassword) {
+      setError('Please fill in all fields');
       return;
     }
-    
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     if (!/[a-z]/.test(newPassword)) {
       setError('Password must contain at least one lowercase letter');
       return;
     }
-    
+
     if (!/[A-Z]/.test(newPassword)) {
       setError('Password must contain at least one uppercase letter');
       return;
     }
-    
+
     if (!/\d/.test(newPassword)) {
       setError('Password must contain at least one number');
       return;
     }
-    
+
     if (!/[!@#$%^&*]/.test(newPassword)) {
       setError('Password must contain at least one special character (!@#$%^&*)');
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    setIsLoading(true);
-    setError('');
+    setIsUpdating(true);
 
     try {
       console.log('🔄 Updating password...');
       
+      // Get current session to find student_id
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setError('Session expired. Please request a new password reset link.');
+        setIsUpdating(false);
+        return;
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
       if (updateError) {
         console.error('❌ Password update error:', updateError);
-        setError(updateError.message || 'Failed to update password. Please try again.');
-        setIsLoading(false);
+        setError(updateError.message || 'Failed to reset password');
+        setIsUpdating(false);
         return;
       }
 
       console.log('✅ Password updated successfully');
+
+      // ✅ CLEAR ALL LOCKOUTS AND ATTEMPTS for this user
+      const userEmail = session.user.email;
+      if (userEmail) {
+        console.log('🔓 Clearing lockouts for email:', userEmail);
+        
+        // Look up student_id from database
+        const { data: userData } = await supabase
+          .from('users')
+          .select('student_id')
+          .eq('email', userEmail)
+          .maybeSingle();
+        
+        if (userData?.student_id) {
+          console.log('🧹 Clearing all login attempts for student_id:', userData.student_id);
+          
+          // Use the SQL function to bypass RLS
+          const { error: clearError } = await supabase.rpc('clear_login_attempts_for_student', {
+            p_student_id: userData.student_id
+          });
+          
+          if (clearError) {
+            console.error('❌ Failed to clear lockouts:', clearError);
+          } else {
+            console.log('✅ Lockouts cleared successfully');
+          }
+        } else {
+          console.warn('⚠️ Could not find student_id to clear lockouts');
+        }
+      }
+
+      toast.success('Password reset successfully!');
       
-      // Clear the URL parameters
+      // ✅ SET LOCALSTORAGE FLAG TO NOTIFY OTHER TABS
+      console.log('📢 Setting localStorage flag: plv_password_reset_complete');
+      localStorage.setItem('plv_password_reset_complete', 'true');
+      
+      // ✅ CLEAR URL PARAMETERS after successful reset
       window.history.replaceState(null, '', window.location.pathname);
       
-      // Show success screen
+      // ✅ SET STEP TO SUCCESS PAGE FIRST
       setStep(2);
-      setIsLoading(false);
-    } catch (err) {
+      setIsUpdating(false);
+      
+      // ✅ THEN SIGN OUT THE USER (after a small delay to ensure UI updates)
+      setTimeout(async () => {
+        console.log('👋 Signing out user after password reset');
+        await supabase.auth.signOut();
+        
+        // ✅ CLEAR ALL FLAGS AFTER SIGNING OUT
+        console.log('🔓 Clearing password reset flags');
+        localStorage.removeItem('plv_password_reset_in_progress');
+        localStorage.removeItem('plv_password_reset_complete');
+      }, 100);
+    } catch (err: any) {
       console.error('❌ Unexpected error:', err);
-      setError('An unexpected error occurred. Please try again.');
-      setIsLoading(false);
+      setError(err.message || 'Failed to reset password');
+      setIsUpdating(false);
     }
   };
 
-  // Loading state
+  const getPasswordStrength = () => {
+    if (!newPassword) return { strength: 0, label: '', color: '' };
+
+    let strength = 0;
+    if (newPassword.length >= 8) strength += 25;
+    if (/[a-z]/.test(newPassword)) strength += 15;
+    if (/[A-Z]/.test(newPassword)) strength += 15;
+    if (/\d/.test(newPassword)) strength += 20;
+    if (/[!@#$%^&*]/.test(newPassword)) strength += 25;
+
+    let label = '';
+    let color = '';
+    if (strength <= 25) {
+      label = 'Weak';
+      color = 'text-destructive';
+    } else if (strength <= 50) {
+      label = 'Fair';
+      color = 'text-accent';
+    } else if (strength <= 75) {
+      label = 'Good';
+      color = 'text-secondary';
+    } else {
+      label = 'Strong';
+      color = 'text-green-600';
+    }
+
+    return { strength, label, color };
+  };
+
+  const passwordStrength = getPasswordStrength();
+
+  // Show loading while checking session
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary via-[#004d99] to-accent flex items-center justify-center p-4">
@@ -301,7 +368,7 @@ export const ResetPasswordPage = () => {
                     setError('');
                   }}
                   required
-                  disabled={isLoading}
+                  disabled={isUpdating}
                   className="h-12 pr-10 border-2 focus:border-accent transition-all"
                 />
                 <button
@@ -360,7 +427,7 @@ export const ResetPasswordPage = () => {
                     setError('');
                   }}
                   required
-                  disabled={isLoading}
+                  disabled={isUpdating}
                   className="h-12 pr-10 border-2 focus:border-accent transition-all"
                 />
                 <button
@@ -377,9 +444,9 @@ export const ResetPasswordPage = () => {
             <Button 
               type="submit" 
               className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md transition-all hover:shadow-lg"
-              disabled={isLoading}
+              disabled={isUpdating}
             >
-              {isLoading ? 'Resetting Password...' : 'Reset Password'}
+              {isUpdating ? 'Resetting Password...' : 'Reset Password'}
             </Button>
           </form>
         </CardContent>
