@@ -187,6 +187,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (session?.user) {
+          // ✅ CHECK IF THIS IS A RECOVERY SESSION (password reset flow)
+          // During password reset, Supabase creates a session but user hasn't set new password yet
+          const searchParams = new URLSearchParams(window.location.search);
+          const queryType = searchParams.get('type');
+          const hash = window.location.hash;
+          let hashType = null;
+          if (hash) {
+            const hashParams = new URLSearchParams(hash.substring(1));
+            hashType = hashParams.get('type');
+          }
+          const type = queryType || hashType;
+          
+          const isRecoverySession = type === 'recovery';
+          
+          // ✅ IF IT'S A RECOVERY SESSION, MARK IT IN SESSION STORAGE (shared across tabs)
+          if (isRecoverySession) {
+            console.log('🔑 Recovery session detected - marking in sessionStorage');
+            sessionStorage.setItem('plv_recovery_in_progress', 'true');
+          }
+          
+          // ✅ CHECK IF RECOVERY IS IN PROGRESS (even without URL params)
+          const recoveryInProgress = sessionStorage.getItem('plv_recovery_in_progress') === 'true';
+          
+          // ✅ IF RECOVERY IS IN PROGRESS, DON'T AUTO-LOGIN
+          if (isRecoverySession || recoveryInProgress) {
+            console.log('🔑 Recovery in progress - NOT auto-logging in until password is reset');
+            setCurrentUser(null);
+            setCurrentPage('reset-password');
+            setLoading(false);
+            return;
+          }
+          
           console.log('👤 Loading profile from getSession...');
           
           const user = await fetchUserProfile(session.user.id);
@@ -196,21 +228,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCurrentUser(user);
             userLoadedFromGetSession = true; // ✅ MARK THAT WE LOADED USER
             
-            // ✅ CHECK IF WE'RE IN A SPECIAL FLOW (recovery/email verification)
-            const searchParams = new URLSearchParams(window.location.search);
-            const queryType = searchParams.get('type');
-            const hash = window.location.hash;
-            let hashType = null;
-            if (hash) {
-              const hashParams = new URLSearchParams(hash.substring(1));
-              hashType = hashParams.get('type');
-            }
-            const type = queryType || hashType;
-            
-            if (type === 'recovery') {
-              console.log('🔑 Recovery flow active - staying on reset-password');
-              setCurrentPage('reset-password');
-            } else if (type === 'email' || type === 'signup') {
+            // ✅ CHECK IF WE'RE IN EMAIL VERIFICATION FLOW
+            if (type === 'email' || type === 'signup') {
               console.log('📧 Email verification flow active - staying on email-verified');
               setCurrentPage('email-verified');
             } else {

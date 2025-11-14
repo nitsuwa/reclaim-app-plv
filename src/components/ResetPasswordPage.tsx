@@ -193,6 +193,10 @@ export const ResetPasswordPage = () => {
 
       toast.success('Password reset successfully!');
       
+      // ✅ CLEAR RECOVERY FLAG FROM SESSIONSTORAGE
+      console.log('🧹 Clearing recovery flag from sessionStorage');
+      sessionStorage.removeItem('plv_recovery_in_progress');
+      
       // Sign out the user so they can log in with new password
       await supabase.auth.signOut();
       
