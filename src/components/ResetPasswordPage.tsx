@@ -52,11 +52,27 @@ export const ResetPasswordPage = () => {
 
   // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const checkSession = async () => {
       try {
         console.log('🔍 Verifying password reset session...');
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Add timeout protection (8 seconds)
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('Session check timed out after 8 seconds'));
+          }, 8000);
+        });
+        
+        const sessionPromise = supabase.auth.getSession();
+        
+        // Race between session check and timeout
+        const result = await Promise.race([sessionPromise, timeoutPromise]);
+        
+        clearTimeout(timeoutId);
+        
+        const { data: { session }, error: sessionError } = result;
         
         if (sessionError) {
           console.error('❌ Session error:', sessionError);
@@ -77,15 +93,24 @@ export const ResetPasswordPage = () => {
         console.log('✅ Password reset session verified for:', session.user.email);
         setSessionValid(true);
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Unexpected error checking session:', err);
-        setError('An error occurred. Please try again.');
+        // If timeout, show user-friendly message
+        if (err.message?.includes('timed out')) {
+          setError('Connection timed out. Please check your internet and try again.');
+        } else {
+          setError('An error occurred. Please try again.');
+        }
         setSessionValid(false);
         setIsLoading(false);
       }
     };
 
     checkSession();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
