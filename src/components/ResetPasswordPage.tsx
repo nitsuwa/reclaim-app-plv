@@ -243,7 +243,11 @@ export const ResetPasswordPage = () => {
               </p>
             </div>
             <Button 
-              onClick={() => setCurrentPage('forgot-password')} 
+              onClick={() => {
+                // Clear URL parameters before navigating
+                window.history.replaceState(null, '', window.location.pathname);
+                setCurrentPage('forgot-password');
+              }} 
               className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md"
             >
               Request New Link

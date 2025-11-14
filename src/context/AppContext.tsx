@@ -79,14 +79,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const saved = localStorage.getItem('plv_current_page');
     console.log('📄 Restoring page from localStorage:', saved || 'landing');
     
-    // ✅ FIX: Only clear 'landing' from localStorage, keep login/register
-    if (saved === 'landing') {
-      console.log('🔄 Clearing "landing" from localStorage');
+    // ✅ FIX: Don't restore auth flow pages or landing page
+    const nonRestorablePages = ['landing', 'reset-password', 'email-verified'];
+    if (!saved || nonRestorablePages.includes(saved)) {
+      console.log('🔄 Clearing non-restorable page from localStorage:', saved);
       localStorage.removeItem('plv_current_page');
       return 'landing';
     }
     
-    return saved || 'landing';
+    return saved;
   });
   
   const [selectedItem, setSelectedItem] = useState<LostItem | null>(null);
@@ -101,7 +102,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setCurrentPageState(page);
     
     // Pages that should NOT be persisted in localStorage
-    const nonPersistentPages = ['landing'];
+    // These include: landing page, auth flow pages (reset-password, email-verified)
+    const nonPersistentPages = ['landing', 'reset-password', 'email-verified'];
     
     if (nonPersistentPages.includes(page)) {
       // Clear localStorage for non-persistent pages
