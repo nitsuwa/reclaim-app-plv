@@ -362,7 +362,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (type === 'recovery') {
       console.log('🔑 Password recovery flow detected');
       setCurrentPage('reset-password');
-      // Don't clear URL - ResetPasswordPage needs the tokens!
+      // Don't clear URL yet - ResetPasswordPage needs the tokens!
+      // URL will be cleared after password reset is complete
     } else if (type === 'email' || type === 'signup') {
       console.log('📧 Email verification flow detected');
       setCurrentPage('email-verified');

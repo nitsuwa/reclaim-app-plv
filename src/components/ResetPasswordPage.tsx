@@ -176,14 +176,13 @@ export const ResetPasswordPage = () => {
         if (userData?.student_id) {
           console.log('🧹 Clearing all login attempts for student_id:', userData.student_id);
           
-          // Delete all login attempts and lockouts for this student
-          const { error: deleteError } = await supabase
-            .from('login_attempts')
-            .delete()
-            .eq('student_id', userData.student_id);
+          // Use the SQL function to bypass RLS
+          const { error: clearError } = await supabase.rpc('clear_login_attempts_for_student', {
+            p_student_id: userData.student_id
+          });
           
-          if (deleteError) {
-            console.error('❌ Failed to clear lockouts:', deleteError);
+          if (clearError) {
+            console.error('❌ Failed to clear lockouts:', clearError);
           } else {
             console.log('✅ Lockouts cleared successfully');
           }
@@ -196,6 +195,9 @@ export const ResetPasswordPage = () => {
       
       // Sign out the user so they can log in with new password
       await supabase.auth.signOut();
+      
+      // ✅ CLEAR URL PARAMETERS after successful reset
+      window.history.replaceState(null, '', window.location.pathname);
       
       setStep(2);
       setIsLoading(false);

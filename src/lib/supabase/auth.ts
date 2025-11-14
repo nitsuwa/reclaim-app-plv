@@ -320,18 +320,19 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
 
     // ✅ CLEAR ALL FAILED ATTEMPTS ON SUCCESSFUL LOGIN
     console.log('🧹 Clearing all login attempts for student_id:', studentId);
-    const { error: deleteError } = await supabase
-      .from('login_attempts')
-      .delete()
-      .eq('student_id', studentId);
+    
+    // Use the SQL function to bypass RLS
+    const { error: clearError } = await supabase.rpc('clear_login_attempts_for_student', {
+      p_student_id: studentId
+    });
 
-    if (deleteError) {
-      console.error('❌ Failed to clear login attempts:', deleteError);
+    if (clearError) {
+      console.error('❌ Failed to clear login attempts:', clearError);
     } else {
       console.log('✅ All login attempts cleared successfully');
     }
 
-    // ✅ RECORD SUCCESSFUL ATTEMPT
+    // ✅ RECORD SUCCESSFUL ATTEMPT (for audit trail)
     const { error: insertError } = await supabase.from('login_attempts').insert({
       student_id: studentId,
       successful: true,
