@@ -138,6 +138,15 @@ export const ResetPasswordPage = () => {
     try {
       console.log('🔄 Updating password...');
       
+      // Get current session to find student_id
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setError('Session expired. Please request a new password reset link.');
+        setIsLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -150,6 +159,39 @@ export const ResetPasswordPage = () => {
       }
 
       console.log('✅ Password updated successfully');
+
+      // ✅ CLEAR ALL LOCKOUTS AND ATTEMPTS for this user
+      // Get student_id from email or from database
+      const userEmail = session.user.email;
+      if (userEmail) {
+        console.log('🔓 Clearing lockouts for email:', userEmail);
+        
+        // Look up student_id from database
+        const { data: userData } = await supabase
+          .from('users')
+          .select('student_id')
+          .eq('email', userEmail)
+          .maybeSingle();
+        
+        if (userData?.student_id) {
+          console.log('🧹 Clearing all login attempts for student_id:', userData.student_id);
+          
+          // Delete all login attempts and lockouts for this student
+          const { error: deleteError } = await supabase
+            .from('login_attempts')
+            .delete()
+            .eq('student_id', userData.student_id);
+          
+          if (deleteError) {
+            console.error('❌ Failed to clear lockouts:', deleteError);
+          } else {
+            console.log('✅ Lockouts cleared successfully');
+          }
+        } else {
+          console.warn('⚠️ Could not find student_id to clear lockouts');
+        }
+      }
+
       toast.success('Password reset successfully!');
       
       // Sign out the user so they can log in with new password

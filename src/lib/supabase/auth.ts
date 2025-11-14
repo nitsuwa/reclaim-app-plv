@@ -319,17 +319,30 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
     }
 
     // ✅ CLEAR ALL FAILED ATTEMPTS ON SUCCESSFUL LOGIN
-    await supabase
+    console.log('🧹 Clearing all login attempts for student_id:', studentId);
+    const { error: deleteError } = await supabase
       .from('login_attempts')
       .delete()
       .eq('student_id', studentId);
 
+    if (deleteError) {
+      console.error('❌ Failed to clear login attempts:', deleteError);
+    } else {
+      console.log('✅ All login attempts cleared successfully');
+    }
+
     // ✅ RECORD SUCCESSFUL ATTEMPT
-    await supabase.from('login_attempts').insert({
+    const { error: insertError } = await supabase.from('login_attempts').insert({
       student_id: studentId,
       successful: true,
       locked_until: null,
     });
+
+    if (insertError) {
+      console.error('❌ Failed to record successful login:', insertError);
+    } else {
+      console.log('✅ Successful login recorded');
+    }
 
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
