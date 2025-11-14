@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -12,10 +12,32 @@ import { sendPasswordResetEmail } from '../lib/supabase/auth';
 
 export const ForgotPasswordPage = () => {
   const { setCurrentPage } = useApp();
-  const [step, setStep] = useState(1); // 1: Email, 2: Email Sent
+  const [step, setStep] = useState(1); // 1: Email, 2: Email Sent, 3: Reset Complete
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ LISTEN FOR PASSWORD RESET COMPLETION FROM OTHER TAB
+  useEffect(() => {
+    const checkResetComplete = () => {
+      const resetComplete = localStorage.getItem('plv_password_reset_complete');
+      if (resetComplete === 'true') {
+        console.log('📢 Password reset detected from other tab - showing success message');
+        localStorage.removeItem('plv_password_reset_complete'); // Clear the flag
+        setStep(3); // Show success step
+      }
+    };
+
+    // Check on mount
+    checkResetComplete();
+
+    // Listen for localStorage changes from other tabs
+    window.addEventListener('storage', checkResetComplete);
+
+    return () => {
+      window.removeEventListener('storage', checkResetComplete);
+    };
+  }, []);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +95,37 @@ export const ForgotPasswordPage = () => {
               </p>
               <p className="text-xs text-muted-foreground">
                 Don't see it? Check your spam folder.
+              </p>
+            </div>
+            <Button 
+              onClick={() => setCurrentPage('login')} 
+              className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md"
+            >
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 3) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary via-[#004d99] to-accent flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-accent/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+
+        <Card className="w-full max-w-md shadow-2xl relative z-10 border border-primary/10 bg-white">
+          <CardContent className="pt-6 text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="bg-accent rounded-full p-6 shadow-md animate-bounce">
+                <CheckCircle2 className="h-16 w-16 text-white" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-primary">Password Reset Complete!</h2>
+              <p className="text-muted-foreground">
+                Your password has been successfully reset.
               </p>
             </div>
             <Button 

@@ -200,21 +200,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const type = queryType || hashType;
           
           const isRecoverySession = type === 'recovery';
+          const isEmailVerification = type === 'email' || type === 'signup';
           
-          // ✅ IF IT'S A RECOVERY SESSION, MARK IT IN LOCALSTORAGE (shared across tabs)
+          // ✅ IF IT'S A RECOVERY SESSION, DON'T AUTO-LOGIN - SHOW RESET PASSWORD FORM
           if (isRecoverySession) {
-            console.log('🔑 Recovery session detected - marking in localStorage');
-            localStorage.setItem('plv_recovery_in_progress', 'true');
-          }
-          
-          // ✅ CHECK IF RECOVERY IS IN PROGRESS (even without URL params)
-          const recoveryInProgress = localStorage.getItem('plv_recovery_in_progress') === 'true';
-          
-          // ✅ IF RECOVERY IS IN PROGRESS, DON'T AUTO-LOGIN
-          if (isRecoverySession || recoveryInProgress) {
-            console.log('🔑 Recovery in progress - NOT auto-logging in until password is reset');
+            console.log('🔑 Recovery link clicked - showing password reset form (NO AUTO-LOGIN)');
             setCurrentUser(null);
             setCurrentPage('reset-password');
+            setLoading(false);
+            return;
+          }
+          
+          // ✅ IF IT'S EMAIL VERIFICATION, DON'T AUTO-LOGIN - SHOW SUCCESS PAGE
+          if (isEmailVerification) {
+            console.log('📧 Email verification link clicked - showing success page (NO AUTO-LOGIN)');
+            setCurrentUser(null);
+            setCurrentPage('email-verified');
             setLoading(false);
             return;
           }

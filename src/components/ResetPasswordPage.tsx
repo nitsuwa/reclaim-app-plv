@@ -193,9 +193,9 @@ export const ResetPasswordPage = () => {
 
       toast.success('Password reset successfully!');
       
-      // ✅ CLEAR RECOVERY FLAG FROM LOCALSTORAGE
-      console.log('🧹 Clearing recovery flag from localStorage');
-      localStorage.removeItem('plv_recovery_in_progress');
+      // ✅ SET LOCALSTORAGE FLAG TO NOTIFY OTHER TABS
+      console.log('📢 Setting localStorage flag: plv_password_reset_complete');
+      localStorage.setItem('plv_password_reset_complete', 'true');
       
       // Sign out the user so they can log in with new password
       await supabase.auth.signOut();
@@ -279,15 +279,27 @@ export const ResetPasswordPage = () => {
             <div className="space-y-2">
               <h2 className="text-primary">Password Reset Successfully!</h2>
               <p className="text-muted-foreground">
-                Your password has been updated. You can now log in with your new password.
+                Your password has been updated.
+              </p>
+              <p className="text-primary font-medium">
+                You can now close this tab and log in with your new password.
               </p>
             </div>
-            <Button 
-              onClick={() => setCurrentPage('login')} 
-              className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md"
-            >
-              Go to Login
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                onClick={() => window.close()} 
+                className="w-full h-12 bg-accent text-white hover:bg-accent/90 shadow-md"
+              >
+                Close This Tab
+              </Button>
+              <Button 
+                onClick={() => setCurrentPage('login')} 
+                variant="outline"
+                className="w-full h-12 border-2 border-accent text-accent hover:bg-accent/10"
+              >
+                Or Go to Login
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
