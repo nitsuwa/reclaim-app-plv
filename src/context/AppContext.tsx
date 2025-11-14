@@ -218,6 +218,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
           
+          // ✅ BLOCK AUTO-LOGIN IF PASSWORD RESET IS IN PROGRESS IN ANOTHER TAB
+          const resetInProgress = localStorage.getItem('plv_password_reset_in_progress');
+          if (resetInProgress === 'true') {
+            console.log('🔒 Password reset in progress - BLOCKING auto-login');
+            setCurrentUser(null);
+            setCurrentPage('landing');
+            setLoading(false);
+            initialCheckDone = true;
+            return;
+          }
+          
+          // ✅ BLOCK AUTO-LOGIN IF EMAIL VERIFICATION IS IN PROGRESS IN ANOTHER TAB
+          const emailVerificationInProgress = localStorage.getItem('plv_email_verification_in_progress');
+          if (emailVerificationInProgress === 'true') {
+            console.log('🔒 Email verification in progress - BLOCKING auto-login');
+            setCurrentUser(null);
+            setCurrentPage('landing');
+            setLoading(false);
+            initialCheckDone = true;
+            return;
+          }
+          
           // ✅ BLOCK AUTO-LOGIN IF ON FORGOT-PASSWORD PAGE
           if (currentPageRef.current === 'forgot-password') {
             console.log('⏭️ On forgot-password page - NOT auto-logging in (ignoring session)');

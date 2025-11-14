@@ -25,6 +25,10 @@ export const ResetPasswordPage = () => {
 
   // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
   useEffect(() => {
+    // ✅ SET FLAG TO BLOCK AUTO-LOGIN IN OTHER TABS
+    console.log('🔒 Setting password reset in progress flag');
+    localStorage.setItem('plv_password_reset_in_progress', 'true');
+    
     const checkSession = async () => {
       try {
         console.log('🔍 Verifying password reset session...');
@@ -208,6 +212,10 @@ export const ResetPasswordPage = () => {
       setTimeout(async () => {
         console.log('👋 Signing out user after password reset');
         await supabase.auth.signOut();
+        
+        // ✅ CLEAR THE FLAG AFTER SIGNING OUT
+        console.log('🔓 Clearing password reset in progress flag');
+        localStorage.removeItem('plv_password_reset_in_progress');
       }, 100);
     } catch (err: any) {
       console.error('❌ Unexpected error:', err);

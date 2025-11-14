@@ -10,6 +10,10 @@ export const EmailVerifiedPage = () => {
   const { setCurrentPage, setCurrentUser } = useApp();
 
   useEffect(() => {
+    // ✅ SET FLAG TO BLOCK AUTO-LOGIN IN OTHER TABS
+    console.log('🔒 Setting email verification in progress flag');
+    localStorage.setItem('plv_email_verification_in_progress', 'true');
+    
     const handleVerification = async () => {
       console.log('📧 Email verification page loaded');
       console.log('🌐 Full URL:', window.location.href);
@@ -23,6 +27,10 @@ export const EmailVerifiedPage = () => {
 
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // ✅ CLEAR THE FLAG AFTER SIGNING OUT
+      console.log('🔓 Clearing email verification in progress flag');
+      localStorage.removeItem('plv_email_verification_in_progress');
       
       console.log('✅ Ready for user to login');
     };
