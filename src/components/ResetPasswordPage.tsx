@@ -20,64 +20,25 @@ export const ResetPasswordPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(false);
-  const [hasValidSession, setHasValidSession] = useState(false);
+  const [sessionValid, setSessionValid] = useState(false);
 
   // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
   useEffect(() => {
-    // ✅ SET FLAG TO BLOCK AUTO-LOGIN IN OTHER TABS
-    console.log('🔒 Setting password reset in progress flag');
-    localStorage.setItem('plv_password_reset_in_progress', 'true');
-    
     const checkSession = async () => {
-      try {
-        console.log('🔍 Verifying password reset session...');
-        
-        // Check URL for recovery type
-        const searchParams = new URLSearchParams(window.location.search);
-        const queryType = searchParams.get('type');
-        const hash = window.location.hash;
-        let hashType = null;
-        if (hash) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          hashType = hashParams.get('type');
-        }
-        const type = queryType || hashType;
-        
-        if (type !== 'recovery') {
-          console.error('❌ Not a recovery flow');
-          setError('Invalid password reset link.');
-          setSessionChecked(true);
-          return;
-        }
-
-        // Wait a moment for session to be established
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('❌ Session error:', sessionError);
-          setError('Failed to verify reset link. Please try again.');
-          setSessionChecked(true);
-          return;
-        }
-
-        if (!session) {
-          console.error('❌ No session found');
-          setError('Invalid or expired reset link. Please request a new one.');
-          setSessionChecked(true);
-          return;
-        }
-
-        console.log('✅ Password reset session verified for:', session.user.email);
-        setHasValidSession(true);
-        setSessionChecked(true);
-      } catch (err) {
-        console.error('❌ Session check error:', err);
-        setError('Failed to verify reset link. Please try again.');
-        setSessionChecked(true);
+      console.log('🔍 Verifying password reset session...');
+      
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        console.error('❌ No session found');
+        setSessionValid(false);
+        setIsLoading(false);
+        return;
       }
+      
+      console.log('✅ Password reset session verified for:', session.user.email);
+      setSessionValid(true);
+      setIsLoading(false);
     };
 
     checkSession();
@@ -228,7 +189,7 @@ export const ResetPasswordPage = () => {
   const passwordStrength = getPasswordStrength();
 
   // Show loading while checking session
-  if (!sessionChecked) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary via-[#004d99] to-accent flex items-center justify-center p-4">
         <div className="text-white text-center space-y-4">
@@ -240,7 +201,7 @@ export const ResetPasswordPage = () => {
   }
 
   // Show error if session check failed
-  if (!hasValidSession && error) {
+  if (!sessionValid && error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary via-[#004d99] to-accent flex items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-accent/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>

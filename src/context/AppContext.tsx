@@ -161,155 +161,78 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Initialize auth state on mount
+  // ✅ AUTH INITIALIZATION
   useEffect(() => {
-    let mounted = true;
     let initialCheckDone = false;
-    let userLoadedFromGetSession = false; // ✅ TRACK IF USER WAS LOADED FROM getSession
-
-    const initAuth = async () => {
+    const initializeAuth = async () => {
       console.log('🔄 Initializing auth...');
       
-      try {
-        // ✅ CHECK URL PARAMETERS FIRST - BEFORE ANYTHING ELSE
-        const searchParams = new URLSearchParams(window.location.search);
-        const queryType = searchParams.get('type');
-        const hash = window.location.hash;
-        let hashType = null;
-        if (hash) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          hashType = hashParams.get('type');
-        }
-        const urlType = queryType || hashType;
+      // ✅ CRITICAL: Check URL for auth flows FIRST, sign out IMMEDIATELY
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlType = urlParams.get('type');
+      
+      if (urlType === 'recovery') {
+        console.log('🔑 Password recovery flow detected');
+        console.log('📝 Setting page to: reset-password');
+        setCurrentPage('reset-password');
+        clearLocalStorageForPage('reset-password');
         
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        console.log('📡 getSession result:', session ? 'Session found' : 'No session');
-        
-        if (error) {
-          console.error('❌ getSession error:', error);
-          setCurrentUser(null);
-          setCurrentPage('landing');
-          setLoading(false);
-          initialCheckDone = true;
-          return;
-        }
-        
-        if (session?.user) {
-          // ✅ BLOCK AUTO-LOGIN IF URL HAS type=recovery (password reset)
-          if (urlType === 'recovery') {
-            console.log('🔑 Recovery URL detected - showing password reset form (NO AUTO-LOGIN)');
-            setCurrentUser(null);
-            setCurrentPage('reset-password');
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          // ✅ BLOCK AUTO-LOGIN IF URL HAS type=email/signup (email verification)
-          if (urlType === 'email' || urlType === 'signup') {
-            console.log('📧 Email verification URL detected - showing success page (NO AUTO-LOGIN)');
-            setCurrentUser(null);
-            setCurrentPage('email-verified');
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          // ✅ BLOCK AUTO-LOGIN IF PASSWORD RESET IS IN PROGRESS IN ANOTHER TAB
-          const resetInProgress = localStorage.getItem('plv_password_reset_in_progress');
-          if (resetInProgress === 'true') {
-            console.log('🔒 Password reset in progress - BLOCKING auto-login');
-            setCurrentUser(null);
-            setCurrentPage('landing');
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          // ✅ BLOCK AUTO-LOGIN IF EMAIL VERIFICATION IS IN PROGRESS IN ANOTHER TAB
-          const emailVerificationInProgress = localStorage.getItem('plv_email_verification_in_progress');
-          if (emailVerificationInProgress === 'true') {
-            console.log('🔒 Email verification in progress - BLOCKING auto-login');
-            setCurrentUser(null);
-            setCurrentPage('landing');
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          // ✅ BLOCK AUTO-LOGIN IF ON FORGOT-PASSWORD PAGE
-          if (currentPageRef.current === 'forgot-password') {
-            console.log('⏭️ On forgot-password page - NOT auto-logging in (ignoring session)');
-            setCurrentUser(null);
-            setLoading(false);
-            initialCheckDone = true;
-            return;
-          }
-          
-          console.log('👤 Loading profile from getSession...');
-          
-          const user = await fetchUserProfile(session.user.id);
-          
-          if (user) {
-            console.log('✅ User loaded:', user.fullName, user.role);
-            setCurrentUser(user);
-            userLoadedFromGetSession = true; // ✅ MARK THAT WE LOADED USER
-            
-            // ✅ ONLY SET DEFAULT PAGE IF ON PUBLIC/LANDING PAGES
-            const savedPage = localStorage.getItem('plv_current_page');
-            const publicPages = ['landing', 'login', 'register', 'forgot-password', 'reset-password', 'email-verified'];
-            
-            if (!savedPage || publicPages.includes(savedPage)) {
-              const defaultPage = user.role === 'admin' ? 'admin' : 'board';
-              console.log('🔀 Setting default page:', defaultPage);
-              setCurrentPage(defaultPage);
-            } else {
-              console.log('🔀 Keeping saved page:', savedPage);
-              // Page is already set from localStorage initialization
-            }
-          } else {
-            console.log('❌ No profile found');
-            setCurrentUser(null);
-            setCurrentPage('landing');
-          }
-          setLoading(false);
-          initialCheckDone = true;
-        } else {
-          console.log('🚪 No session');
-          setLoading(false);
-          initialCheckDone = true;
-        }
-      } catch (error) {
-        console.error('❌ Init auth error:', error);
-        if (mounted) {
-          initialCheckDone = true;
-          setCurrentUser(null);
-          setCurrentPage('landing');
-          setLoading(false);
-        }
+        // ✅ SIGN OUT IMMEDIATELY to prevent other tabs from auto-logging in
+        console.log('🚪 Signing out any existing session for recovery flow');
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+        return;
       }
+      
+      if (urlType === 'email' || urlType === 'signup') {
+        console.log('📧 Email verification flow detected');
+        console.log('📝 Setting page to: email-verified');
+        setCurrentPage('email-verified');
+        clearLocalStorageForPage('email-verified');
+        
+        // ✅ SIGN OUT IMMEDIATELY to prevent other tabs from auto-logging in
+        console.log('🚪 Signing out any existing session for email verification');
+        await supabase.auth.signOut();
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+        return;
+      }
+
+      // ✅ RESTORE PAGE STATE FROM LOCALSTORAGE
+      const savedPage = localStorage.getItem('plv_current_page');
+      console.log('📄 Restoring page from localStorage:', savedPage || 'landing');
+      
+      // ✅ FIX: Don't restore auth flow pages or landing page
+      const nonRestorablePages = ['landing', 'reset-password', 'email-verified'];
+      if (!savedPage || nonRestorablePages.includes(savedPage)) {
+        console.log('🔄 Clearing non-restorable page from localStorage:', savedPage);
+        localStorage.removeItem('plv_current_page');
+        currentPageRef.current = 'landing';
+        return 'landing';
+      }
+      
+      currentPageRef.current = savedPage;
+      return savedPage;
     };
 
     // Safety timeout - increased to 5 seconds and only triggers if auth hasn't completed
     const safetyTimeout = setTimeout(() => {
-      if (mounted && loading && !initialCheckDone) {
+      if (loading && !initialCheckDone) {
         console.warn('⏰ Safety timeout - completing auth');
         setLoading(false);
         initialCheckDone = true;
       }
     }, 5000);
 
-    initAuth();
+    initializeAuth();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔔 Auth event:', event);
-        
-        if (!mounted) return;
         
         // ✅ IGNORE ALL EVENTS UNTIL INITIAL CHECK IS DONE
         if (!initialCheckDone) {
@@ -367,7 +290,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           
           const user = await fetchUserProfile(session.user.id);
           
-          if (user && mounted) {
+          if (user) {
             console.log('✅ Profile loaded:', user.fullName, user.role);
             setCurrentUser(user);
             userLoadedFromGetSession = true; // ✅ SET FLAG AFTER FRESH LOGIN
@@ -420,7 +343,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       console.log('🧹 Cleaning up auth');
-      mounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
@@ -606,4 +528,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AppContext.Provider>
   );
+};
+
+// Helper function to clear localStorage for specific pages
+const clearLocalStorageForPage = (page: string) => {
+  const nonPersistentPages = ['landing', 'reset-password', 'email-verified'];
+  if (nonPersistentPages.includes(page)) {
+    console.log('🧹 Clearing localStorage for non-persistent page:', page);
+    localStorage.removeItem('plv_current_page');
+  }
 };
