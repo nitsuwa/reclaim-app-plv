@@ -164,10 +164,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // ✅ AUTH INITIALIZATION
   useEffect(() => {
     let initialCheckDone = false;
+    let userLoadedFromGetSession = false;
+    
     const initializeAuth = async () => {
       console.log('🔄 Initializing auth...');
       
-      // ✅ CRITICAL: Check URL for auth flows FIRST, sign out IMMEDIATELY
+      // ✅ CHECK URL FOR AUTH FLOWS FIRST
       const urlParams = new URLSearchParams(window.location.search);
       const urlType = urlParams.get('type');
       
@@ -176,10 +178,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.log('📝 Setting page to: reset-password');
         setCurrentPage('reset-password');
         clearLocalStorageForPage('reset-password');
-        
-        // ✅ SIGN OUT IMMEDIATELY to prevent other tabs from auto-logging in
-        console.log('🚪 Signing out any existing session for recovery flow');
-        await supabase.auth.signOut();
+        // DON'T sign out - we need the session for password reset
+        // Just block auto-login by not loading profile
         setCurrentUser(null);
         setLoading(false);
         initialCheckDone = true;
@@ -191,9 +191,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.log('📝 Setting page to: email-verified');
         setCurrentPage('email-verified');
         clearLocalStorageForPage('email-verified');
-        
-        // ✅ SIGN OUT IMMEDIATELY to prevent other tabs from auto-logging in
-        console.log('🚪 Signing out any existing session for email verification');
+        // Sign out for email verification
         await supabase.auth.signOut();
         setCurrentUser(null);
         setLoading(false);
@@ -210,12 +208,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (!savedPage || nonRestorablePages.includes(savedPage)) {
         console.log('🔄 Clearing non-restorable page from localStorage:', savedPage);
         localStorage.removeItem('plv_current_page');
-        currentPageRef.current = 'landing';
-        return 'landing';
       }
       
-      currentPageRef.current = savedPage;
-      return savedPage;
+      // ✅ CHECK FOR EXISTING SESSION
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('📡 getSession result:', session ? 'Session found' : 'No session');
+
+      if (error) {
+        console.error('❌ getSession error:', error);
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+        return;
+      }
+
+      if (!session?.user) {
+        console.log('🚪 No session');
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+        return;
+      }
+
+      // ✅ WE HAVE A SESSION - LOAD PROFILE
+      console.log('👤 Loading profile from getSession...');
+      
+      const user = await fetchUserProfile(session.user.id);
+      
+      if (user) {
+        console.log('✅ User loaded:', user.fullName, user.role);
+        setCurrentUser(user);
+        userLoadedFromGetSession = true;
+        
+        // ✅ SET DEFAULT PAGE BASED ON ROLE IF NO SAVED PAGE
+        if (!savedPage || nonRestorablePages.includes(savedPage)) {
+          const defaultPage = user.role === 'admin' ? 'admin' : 'board';
+          console.log('🔀 Setting default page:', defaultPage);
+          setCurrentPage(defaultPage);
+        } else {
+          console.log('🔀 Keeping saved page:', savedPage);
+        }
+        setLoading(false);
+        initialCheckDone = true;
+      } else {
+        console.error('❌ Profile not found');
+        setCurrentUser(null);
+        setLoading(false);
+        initialCheckDone = true;
+      }
     };
 
     // Safety timeout - increased to 5 seconds and only triggers if auth hasn't completed
