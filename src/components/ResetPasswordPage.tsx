@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { useApp } from '../context/AppContext';
-import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
-import { PLVLogo } from './PLVLogo';
-import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
+import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { PLVLogo } from './PLVLogo';
+import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase/client';
 
 export const ResetPasswordPage = () => {
@@ -19,10 +18,9 @@ export const ResetPasswordPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [sessionValid, setSessionValid] = useState(true);
-  const [step, setStep] = useState(1); // 1: Reset form, 2: Success
-  
+  const [sessionValid, setSessionValid] = useState(false);
+  const [step, setStep] = useState(1); // 1 = form, 2 = success
+
   // ✅ BROADCAST AUTH FLOW STATUS TO OTHER TABS
   useEffect(() => {
     // Set localStorage flag immediately (persists across refreshes)
@@ -50,187 +48,137 @@ export const ResetPasswordPage = () => {
     }
   }, []);
 
-  // ✅ VERIFY SESSION EXISTS (Supabase auto-creates it from the magic link)
+  // Check if recovery session exists
   useEffect(() => {
     const checkSession = async () => {
-      console.log('🔍 Verifying password reset session...');
+      console.log('🔍 Checking recovery session...');
       
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session) {
-        console.error('❌ No session found');
-        setSessionValid(false);
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Session error:', sessionError);
+          setError('Invalid or expired reset link. Please request a new one.');
+          setIsLoading(false);
+          setSessionValid(false);
+          return;
+        }
+
+        if (!session) {
+          console.log('❌ No session found');
+          setError('Invalid or expired reset link. Please request a new one.');
+          setIsLoading(false);
+          setSessionValid(false);
+          return;
+        }
+
+        console.log('✅ Valid recovery session found');
+        setSessionValid(true);
         setIsLoading(false);
-        return;
+      } catch (err) {
+        console.error('❌ Unexpected error:', err);
+        setError('An unexpected error occurred. Please try again.');
+        setIsLoading(false);
+        setSessionValid(false);
       }
-      
-      console.log('✅ Password reset session verified for:', session.user.email);
-      setSessionValid(true);
-      setIsLoading(false);
     };
 
     checkSession();
   }, []);
 
+  const getPasswordStrength = (password: string) => {
+    let strength = 0;
+    
+    if (password.length >= 8) strength += 20;
+    if (password.length >= 12) strength += 10;
+    if (/[a-z]/.test(password)) strength += 20;
+    if (/[A-Z]/.test(password)) strength += 20;
+    if (/\d/.test(password)) strength += 15;
+    if (/[!@#$%^&*]/.test(password)) strength += 15;
+    
+    let label = 'Weak';
+    let color = 'text-destructive';
+    
+    if (strength >= 70) {
+      label = 'Strong';
+      color = 'text-green-600';
+    } else if (strength >= 50) {
+      label = 'Medium';
+      color = 'text-yellow-600';
+    }
+    
+    return { strength, label, color };
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
+
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    if (!newPassword || !confirmPassword) {
-      setError('Please fill in all fields');
-      return;
-    }
-
+    
+    // Validate password requirements
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Password must be at least 8 characters long');
       return;
     }
-
+    
     if (!/[a-z]/.test(newPassword)) {
       setError('Password must contain at least one lowercase letter');
       return;
     }
-
+    
     if (!/[A-Z]/.test(newPassword)) {
       setError('Password must contain at least one uppercase letter');
       return;
     }
-
+    
     if (!/\d/.test(newPassword)) {
       setError('Password must contain at least one number');
       return;
     }
-
+    
     if (!/[!@#$%^&*]/.test(newPassword)) {
       setError('Password must contain at least one special character (!@#$%^&*)');
       return;
     }
-
+    
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    setIsUpdating(true);
+    setIsLoading(true);
+    setError('');
 
     try {
       console.log('🔄 Updating password...');
       
-      // Get current session to find student_id
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setError('Session expired. Please request a new password reset link.');
-        setIsUpdating(false);
-        return;
-      }
-
-      const { error } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (error) {
-        console.error('❌ Password update error:', error);
-        setError(error.message || 'Failed to reset password');
-        setIsUpdating(false);
+      if (updateError) {
+        console.error('❌ Password update error:', updateError);
+        setError(updateError.message || 'Failed to update password. Please try again.');
+        setIsLoading(false);
         return;
       }
 
       console.log('✅ Password updated successfully');
-
-      // ✅ CLEAR ALL LOCKOUTS AND ATTEMPTS for this user
-      // Get student_id from email or from database
-      const userEmail = session.user.email;
-      if (userEmail) {
-        console.log('🔓 Clearing lockouts for email:', userEmail);
-        
-        // Look up student_id from database
-        const { data: userData } = await supabase
-          .from('users')
-          .select('student_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        
-        if (userData?.student_id) {
-          console.log('🧹 Clearing all login attempts for student_id:', userData.student_id);
-          
-          // Use the SQL function to bypass RLS
-          const { error: clearError } = await supabase.rpc('clear_login_attempts_for_student', {
-            p_student_id: userData.student_id
-          });
-          
-          if (clearError) {
-            console.error('❌ Failed to clear lockouts:', clearError);
-          } else {
-            console.log('✅ Lockouts cleared successfully');
-          }
-        } else {
-          console.warn('⚠️ Could not find student_id to clear lockouts');
-        }
-      }
-
-      toast.success('Password reset successfully!');
       
-      // ✅ SET LOCALSTORAGE FLAG TO NOTIFY OTHER TABS
-      console.log('📢 Setting localStorage flag: plv_password_reset_complete');
-      localStorage.setItem('plv_password_reset_complete', 'true');
-      
-      // ✅ CLEAR URL PARAMETERS after successful reset
+      // Clear the URL parameters
       window.history.replaceState(null, '', window.location.pathname);
       
-      // ✅ SET STEP TO SUCCESS PAGE FIRST
+      // Show success screen
       setStep(2);
-      setIsUpdating(false);
-      
-      // ✅ THEN SIGN OUT THE USER (after a small delay to ensure UI updates)
-      setTimeout(async () => {
-        console.log('👋 Signing out user after password reset');
-        await supabase.auth.signOut();
-        
-        // ✅ CLEAR ALL FLAGS AFTER SIGNING OUT
-        console.log('🔓 Clearing password reset flags');
-        localStorage.removeItem('plv_password_reset_in_progress');
-        localStorage.removeItem('plv_password_reset_complete');
-      }, 100);
-    } catch (err: any) {
+      setIsLoading(false);
+    } catch (err) {
       console.error('❌ Unexpected error:', err);
-      setError(err.message || 'Failed to reset password');
-      setIsUpdating(false);
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
   };
 
-  const getPasswordStrength = () => {
-    if (!newPassword) return { strength: 0, label: '', color: '' };
-
-    let strength = 0;
-    if (newPassword.length >= 8) strength += 25;
-    if (/[a-z]/.test(newPassword)) strength += 15;
-    if (/[A-Z]/.test(newPassword)) strength += 15;
-    if (/\d/.test(newPassword)) strength += 20;
-    if (/[!@#$%^&*]/.test(newPassword)) strength += 25;
-
-    let label = '';
-    let color = '';
-    if (strength <= 25) {
-      label = 'Weak';
-      color = 'text-destructive';
-    } else if (strength <= 50) {
-      label = 'Fair';
-      color = 'text-accent';
-    } else if (strength <= 75) {
-      label = 'Good';
-      color = 'text-secondary';
-    } else {
-      label = 'Strong';
-      color = 'text-green-600';
-    }
-
-    return { strength, label, color };
-  };
-
-  const passwordStrength = getPasswordStrength();
-
-  // Show loading while checking session
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary via-[#004d99] to-accent flex items-center justify-center p-4">
