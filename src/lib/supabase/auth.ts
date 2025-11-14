@@ -179,6 +179,7 @@ export const signUp = async (
 /**
  * Sign in existing user
  * Supports login with email OR student ID
+ * WITH RATE LIMITING: 5 attempts max, 5-minute lockout
  * 
  * @param emailOrStudentId - User email or student ID
  * @param password - User password
@@ -186,57 +187,149 @@ export const signUp = async (
  */
 export const signIn = async (emailOrStudentId: string, password: string): Promise<AuthResult> => {
   try {
+    // Handle both full email or just student ID
     let loginEmail = emailOrStudentId;
+    let studentId = emailOrStudentId;
+    
+    // ✅ FIRST: Determine the actual email and student_id from database
+    if (!emailOrStudentId.includes('@')) {
+      // Input is a student ID - look up the email from database
+      const { data: userData } = await supabase
+        .from('users')
+        .select('email, student_id')
+        .eq('student_id', emailOrStudentId)
+        .maybeSingle();
 
-    // ✅ CHECK IF INPUT IS STUDENT ID (format: XX-XXXX)
-    if (/^\d{2}-\d{4}$/.test(emailOrStudentId)) {
-      const result = await getEmailByStudentId(emailOrStudentId);
-      
-      if (!result.success || !result.email) {
+      if (!userData) {
         return { 
           success: false, 
-          error: 'Student ID not found. Please check and try again.' 
+          error: 'No account found with this student ID. Please check your student ID or register for a new account.' 
         };
       }
-      
-      loginEmail = result.email;
+
+      // Use the actual email and student_id from database
+      loginEmail = userData.email;
+      studentId = userData.student_id;
     } else {
-      // ✅ CHECK IF EMAIL EXISTS IN DATABASE (if input is email format)
-      const emailCheck = await checkEmailExists(loginEmail);
-      
-      if (emailCheck.error) {
-        console.error('❌ Error checking email:', emailCheck.error);
-        // Continue with login attempt - let Supabase handle it
-      } else if (!emailCheck.exists) {
+      // Input is an email - look up the student_id from database
+      const { data: userData } = await supabase
+        .from('users')
+        .select('email, student_id')
+        .eq('email', emailOrStudentId)
+        .maybeSingle();
+
+      if (!userData) {
         return { 
           success: false, 
           error: 'No account found with this email. Please check your email or register for a new account.' 
         };
       }
+
+      // Use the actual student_id from database
+      loginEmail = userData.email;
+      studentId = userData.student_id;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // ✅ NOW CHECK IF ACCOUNT IS LOCKED (using actual student_id from database)
+    const { data: lockCheck } = await supabase
+      .from('login_attempts')
+      .select('locked_until')
+      .eq('student_id', studentId)
+      .order('attempt_time', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lockCheck?.locked_until) {
+      const lockTime = new Date(lockCheck.locked_until);
+      const now = new Date();
+      
+      if (now < lockTime) {
+        const remainingMinutes = Math.ceil((lockTime.getTime() - now.getTime()) / 60000);
+        return {
+          success: false,
+          error: `Account locked due to too many failed attempts. Try again in ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}.`,
+        };
+      }
+    }
+
+    // ✅ TRY TO LOGIN - This will tell us if account is unverified
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password,
     });
 
-    if (error) {
-      // Provide better error messages
-      if (error.message.includes('Invalid login credentials')) {
-        return { success: false, error: 'Incorrect password. Please try again.' };
+    if (authError) {
+      // Check if user exists but email is not verified
+      if (authError.message.includes('Email not confirmed')) {
+        return {
+          success: false,
+          error: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+        };
       }
-      return { success: false, error: error.message };
+
+      // ✅ RECORD FAILED ATTEMPT (only for verified accounts)
+      const { data: recentAttempts } = await supabase
+        .from('login_attempts')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('successful', false)
+        .gte('attempt_time', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+      const failedCount = (recentAttempts?.length || 0) + 1;
+
+      if (failedCount >= 5) {
+        // Lock account for 5 minutes
+        const lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
+        await supabase.from('login_attempts').insert({
+          student_id: studentId,
+          successful: false,
+          locked_until: lockedUntil.toISOString(),
+        });
+
+        return {
+          success: false,
+          error: 'Too many failed attempts. Account locked for 5 minutes.',
+        };
+      } else {
+        // Record failed attempt
+        await supabase.from('login_attempts').insert({
+          student_id: studentId,
+          successful: false,
+        });
+
+        const remainingAttempts = 5 - failedCount;
+        
+        return {
+          success: false,
+          error: `Incorrect password. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining.`,
+        };
+      }
     }
 
-    if (!data.user) {
+    if (!authData.user) {
       return { success: false, error: 'Login failed' };
     }
+
+    // Check if email is verified
+    if (!authData.user.email_confirmed_at) {
+      return {
+        success: false,
+        error: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+      };
+    }
+
+    // ✅ RECORD SUCCESSFUL ATTEMPT
+    await supabase.from('login_attempts').insert({
+      student_id: studentId,
+      successful: true,
+      locked_until: null,
+    });
 
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('*')
-      .eq('auth_id', data.user.id)
+      .eq('auth_id', authData.user.id)
       .single();
 
     if (profileError) {
@@ -244,21 +337,13 @@ export const signIn = async (emailOrStudentId: string, password: string): Promis
       return { success: false, error: 'Failed to load user profile' };
     }
 
-    // Check if email is verified
-    if (!data.user.email_confirmed_at) {
-      return {
-        success: false,
-        error: 'Please verify your email address before logging in.',
-      };
-    }
-
     // ✅ AUTO-UPDATE is_verified if email is confirmed but database shows false
-    if (data.user.email_confirmed_at && !profile.is_verified) {
+    if (authData.user.email_confirmed_at && !profile.is_verified) {
       console.log('✅ Email is confirmed in auth but is_verified is false - updating database...');
       const { error: updateError } = await supabase
         .from('users')
         .update({ is_verified: true })
-        .eq('auth_id', data.user.id);
+        .eq('auth_id', authData.user.id);
       
       if (updateError) {
         console.error('❌ Failed to update is_verified:', updateError);
@@ -409,6 +494,20 @@ export const updatePassword = async (newPassword: string): Promise<AuthResult> =
     }
 
     console.log('✅ Password updated successfully');
+
+    // ✅ CLEAR ALL LOCKOUTS for this user
+    const studentId = session.user.email?.split('@')[0];
+    if (studentId) {
+      console.log('🔓 Clearing lockouts for student ID:', studentId);
+      
+      // Delete all login attempts and lockouts for this student
+      await supabase
+        .from('login_attempts')
+        .delete()
+        .eq('student_id', studentId);
+      
+      console.log('✅ Lockouts cleared');
+    }
 
     // Sign out after password reset for security
     await supabase.auth.signOut();
