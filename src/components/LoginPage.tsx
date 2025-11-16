@@ -42,7 +42,7 @@ export const LoginPage = () => {
 
       // Successful login
       toast.success('Login successful!', {
-        description: `Welcome back, ${result.user?.fullName}!`
+        description: `Welcome, ${result.user?.fullName}!`
       });
 
       // Set user in context (triggers navigation via AppContext effect)

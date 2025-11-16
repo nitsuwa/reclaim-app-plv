@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -15,6 +15,7 @@ import { motion } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { uploadItemPhoto } from '../lib/supabase';
 import { createLostItem } from '../lib/supabase/database';
+import { BackToTopButton } from './BackToTopButton';
 
 export const ReportItemForm = () => {
   const { setCurrentPage, items, setItems, currentUser, addActivityLog } = useApp();
@@ -33,13 +34,294 @@ export const ReportItemForm = () => {
     securityQuestion2: '',
     securityAnswer2: '',
     securityQuestion3: '',
-    securityAnswer3: ''
+    securityAnswer3: '',
+    securityQuestion4: '',
+    securityAnswer4: ''
   });
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Validation errors state
+  const [errors, setErrors] = useState({
+    itemType: false,
+    otherItemTypeDetails: false,
+    description: false,
+    location: false,
+    otherLocationDetails: false,
+    dateFound: false,
+    timeFound: false,
+    securityAnswer1: false,
+    securityAnswer2: false,
+    securityAnswer3: false,
+    securityAnswer4: false
+  });
+  const [touched, setTouched] = useState({
+    itemType: false,
+    otherItemTypeDetails: false,
+    description: false,
+    location: false,
+    otherLocationDetails: false,
+    dateFound: false,
+    timeFound: false,
+    securityAnswer1: false,
+    securityAnswer2: false,
+    securityAnswer3: false,
+    securityAnswer4: false
+  });
+
+  // Predefined security questions based on item type
+  const predefinedQuestions: Record<string, string[]> = {
+    'Wallet': [
+      'What is the primary color of the wallet?',
+      'What material is the wallet made of (leather, fabric, synthetic, etc.)?',
+      'What brand or logo is visible on the wallet?',
+      'What are the contents of the wallet? (e.g., number of cards, cash amount, IDs, receipts)'
+    ],
+    'Phone': [
+      'What is the brand and model of the phone?',
+      'What color is the phone or phone case?',
+      'Describe any visible damage, scratches, or distinctive marks on the phone.',
+      'Does the phone case have any cards, cash, or items stored in it? If yes, describe.'
+    ],
+    'ID Card': [
+      'What is the complete ID number printed on the card?',
+      'What is the full name printed on the ID card?',
+      'What year was the ID card issued or what is the expiration year?'
+    ],
+    'Bag': [
+      'What is the primary color and material of the bag?',
+      'What brand or logo appears on the bag?',
+      'How many main compartments or pockets does the bag have?',
+      'What are the main contents inside the bag? (e.g., books, laptop, clothes, gadgets)'
+    ],
+    'Keys': [
+      'How many keys are attached to the keychain?',
+      'What color and shape is the keychain holder?',
+      'Describe any distinctive tags, labels, or accessories on the keychain.',
+      'Are there any other items attached besides keys? (e.g., USB, ID holder, charms)'
+    ],
+    'Laptop': [
+      'What is the brand and model of the laptop?',
+      'What is the approximate screen size (13", 14", 15", etc.)?',
+      'Describe any stickers, scratches, or distinctive marks on the laptop.',
+      'Are there any accessories with the laptop? (e.g., charger, mouse, bag, case)'
+    ],
+    'Book': [
+      'What is the complete title of the book?',
+      'Who is the author of the book?',
+      'What is the color of the book cover and approximate number of pages?',
+      'Are there any bookmarks, notes, papers, or items inside the book? If yes, describe.'
+    ],
+    'Other': [
+      'What is the specific name or type of the item?',
+      'What is the primary color and material of the item?',
+      'Describe any distinctive features, markings, or serial numbers on the item.',
+      'Does this item contain or come with any accessories or additional items? If yes, describe.'
+    ]
+  };
+
+  // Validation function
+  const validateField = (name: string, value: string) => {
+    switch (name) {
+      case 'itemType':
+        return value.trim() === '';
+      case 'otherItemTypeDetails':
+        return formData.itemType === 'Other' && value.trim() === '';
+      case 'description':
+        return value.trim() === '';
+      case 'location':
+        return value.trim() === '';
+      case 'otherLocationDetails':
+        return formData.location === 'Other' && value.trim() === '';
+      case 'dateFound':
+        return value.trim() === '';
+      case 'timeFound':
+        return value.trim() === '';
+      case 'securityAnswer1':
+      case 'securityAnswer2':
+      case 'securityAnswer3':
+        return formData.itemType && value.trim() === '';
+      case 'securityAnswer4':
+        return formData.securityQuestion4 && formData.securityQuestion4.trim() !== '' && value.trim() === '';
+      default:
+        return false;
+    }
+  };
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  // Helper function to clear form data
+  const clearFormData = () => {
+    localStorage.removeItem('reportItemFormData');
+    localStorage.removeItem('reportItemPhotoPreview');
+    localStorage.removeItem('reportItemSelectedDate');
+    setFormData({
+      itemType: '',
+      otherItemTypeDetails: '',
+      description: '',
+      location: '',
+      otherLocationDetails: '',
+      dateFound: '',
+      timeFound: '',
+      photoUrl: '',
+      securityQuestion1: '',
+      securityAnswer1: '',
+      securityQuestion2: '',
+      securityAnswer2: '',
+      securityQuestion3: '',
+      securityAnswer3: '',
+      securityQuestion4: '',
+      securityAnswer4: ''
+    });
+    setPhotoPreview('');
+    setPhotoFile(null);
+    setSelectedDate(undefined);
+  };
+
+  // Load persisted form data from localStorage on mount
+  useEffect(() => {
+    // Only load saved data if user is logged in
+    if (!currentUser) {
+      clearFormData();
+      return;
+    }
+
+    const savedFormData = localStorage.getItem('reportItemFormData');
+    const savedPhotoPreview = localStorage.getItem('reportItemPhotoPreview');
+    const savedDate = localStorage.getItem('reportItemSelectedDate');
+    
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData);
+        setFormData(parsedData);
+      } catch (e) {
+        console.error('Error loading saved form data:', e);
+      }
+    }
+    
+    if (savedPhotoPreview) {
+      setPhotoPreview(savedPhotoPreview);
+    }
+    
+    if (savedDate) {
+      try {
+        setSelectedDate(new Date(savedDate));
+      } catch (e) {
+        console.error('Error loading saved date:', e);
+      }
+    }
+  }, [currentUser]);
+
+  // Save form data to localStorage whenever it changes (ONLY if user is logged in)
+  useEffect(() => {
+    if (currentUser && (formData.itemType || formData.description || formData.location)) {
+      localStorage.setItem('reportItemFormData', JSON.stringify(formData));
+    }
+  }, [formData, currentUser]);
+
+  // Save photo preview to localStorage (ONLY if user is logged in)
+  useEffect(() => {
+    if (currentUser && photoPreview) {
+      localStorage.setItem('reportItemPhotoPreview', photoPreview);
+    }
+  }, [photoPreview, currentUser]);
+
+  // Save selected date to localStorage (ONLY if user is logged in)
+  useEffect(() => {
+    if (currentUser && selectedDate) {
+      localStorage.setItem('reportItemSelectedDate', selectedDate.toISOString());
+    }
+  }, [selectedDate, currentUser]);
+
+  // Clear form data on logout or when user explicitly submits
+  useEffect(() => {
+    if (!currentUser) {
+      clearFormData();
+      // Redirect to board when logged out
+      setCurrentPage('board');
+    }
+  }, [currentUser, setCurrentPage]);
+
+  // Clear form data when success screen appears
+  useEffect(() => {
+    if (submitted) {
+      clearFormData();
+    }
+  }, [submitted]);
+
+  // Clear form data when component unmounts (user leaves page)
+  useEffect(() => {
+    return () => {
+      // Only clear if user is navigating away (not on success screen)
+      if (!submitted) {
+        const hasFormData = formData.itemType || formData.description || formData.location;
+        if (hasFormData) {
+          // Data will be preserved in localStorage for logged-in users
+          // But we don't want to preserve it indefinitely
+          console.log('Form has unsaved data on unmount');
+        }
+      }
+    };
+  }, [submitted, formData]);
+
+  // Add beforeunload event listener to warn user about unsaved data
+  useEffect(() => {
+    const hasFormData = formData.itemType || formData.description || formData.location;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasFormData && !submitted) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    
+    if (hasFormData) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [formData, submitted]);
+
+  // Real-time validation
+  useEffect(() => {
+    const newErrors = {
+      itemType: touched.itemType && validateField('itemType', formData.itemType),
+      otherItemTypeDetails: touched.otherItemTypeDetails && validateField('otherItemTypeDetails', formData.otherItemTypeDetails),
+      description: touched.description && validateField('description', formData.description),
+      location: touched.location && validateField('location', formData.location),
+      otherLocationDetails: touched.otherLocationDetails && validateField('otherLocationDetails', formData.otherLocationDetails),
+      dateFound: touched.dateFound && validateField('dateFound', formData.dateFound),
+      timeFound: touched.timeFound && validateField('timeFound', formData.timeFound),
+      securityAnswer1: touched.securityAnswer1 && validateField('securityAnswer1', formData.securityAnswer1),
+      securityAnswer2: touched.securityAnswer2 && validateField('securityAnswer3', formData.securityAnswer3),
+      securityAnswer3: touched.securityAnswer3 && validateField('securityAnswer3', formData.securityAnswer3),
+      securityAnswer4: touched.securityAnswer4 && validateField('securityAnswer4', formData.securityAnswer4),
+    };
+    setErrors(newErrors);
+  }, [formData, touched]);
+
+  // Update security questions when item type changes
+  useEffect(() => {
+    if (formData.itemType && predefinedQuestions[formData.itemType]) {
+      const questions = predefinedQuestions[formData.itemType];
+      setFormData(prev => ({
+        ...prev,
+        securityQuestion1: questions[0] || '',
+        securityQuestion2: questions[1] || '',
+        securityQuestion3: questions[2] || '',
+        securityQuestion4: questions[3] || ''
+      }));
+    }
+  }, [formData.itemType]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,6 +358,44 @@ export const ReportItemForm = () => {
     }
   };
 
+  // Calculate form completion percentage
+  const calculateCompletion = (): number => {
+    const requiredFields = [
+      'itemType',
+      'description',
+      'location',
+      'dateFound',
+      'timeFound',
+      'securityAnswer1',
+      'securityAnswer2',
+      'securityAnswer3'
+    ];
+
+    // Only include securityAnswer4 if securityQuestion4 exists
+    if (formData.securityQuestion4 && formData.securityQuestion4.trim() !== '') {
+      requiredFields.push('securityAnswer4');
+    }
+
+    // Add conditional required fields
+    const conditionalFields: string[] = [];
+    if (formData.itemType === 'Other') {
+      conditionalFields.push('otherItemTypeDetails');
+    }
+    if (formData.location === 'Other') {
+      conditionalFields.push('otherLocationDetails');
+    }
+
+    const allRequiredFields = [...requiredFields, ...conditionalFields];
+    const filledFields = allRequiredFields.filter(field => {
+      const value = formData[field as keyof typeof formData];
+      return value && value.trim() !== '';
+    });
+
+    return Math.round((filledFields.length / allRequiredFields.length) * 100);
+  };
+
+  const completionPercentage = calculateCompletion();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -84,16 +404,65 @@ export const ReportItemForm = () => {
       return;
     }
     
-    // Validate optional security questions
-    if ((formData.securityQuestion2 && !formData.securityAnswer2) || 
-        (!formData.securityQuestion2 && formData.securityAnswer2)) {
-      toast.error('Question 2: Both question and answer must be filled or both left empty');
+    // Mark all fields as touched to show validation errors
+    setTouched({
+      itemType: true,
+      otherItemTypeDetails: true,
+      description: true,
+      location: true,
+      otherLocationDetails: true,
+      dateFound: true,
+      timeFound: true,
+      securityAnswer1: true,
+      securityAnswer2: true,
+      securityAnswer3: true,
+      securityAnswer4: true
+    });
+    
+    // Validate required fields
+    if (!formData.itemType) {
+      toast.error('Please select an item type');
       return;
     }
     
-    if ((formData.securityQuestion3 && !formData.securityAnswer3) || 
-        (!formData.securityQuestion3 && formData.securityAnswer3)) {
-      toast.error('Question 3: Both question and answer must be filled or both left empty');
+    if (formData.itemType === 'Other' && !formData.otherItemTypeDetails.trim()) {
+      toast.error('Please specify the item type');
+      return;
+    }
+    
+    if (!formData.description.trim()) {
+      toast.error('Please provide an item description');
+      return;
+    }
+    
+    if (!formData.location) {
+      toast.error('Please select a location');
+      return;
+    }
+    
+    if (formData.location === 'Other' && !formData.otherLocationDetails.trim()) {
+      toast.error('Please specify the location');
+      return;
+    }
+    
+    if (!formData.dateFound) {
+      toast.error('Please select the date found');
+      return;
+    }
+    
+    if (!formData.timeFound) {
+      toast.error('Please select the time found');
+      return;
+    }
+    
+    // Validate answers based on number of questions for this item type
+    const hasQuestion4 = formData.securityQuestion4 && formData.securityQuestion4.trim() !== '';
+    if (!formData.securityAnswer1 || !formData.securityAnswer2 || !formData.securityAnswer3) {
+      toast.error('Please answer all security questions');
+      return;
+    }
+    if (hasQuestion4 && !formData.securityAnswer4) {
+      toast.error('Please answer all security questions');
       return;
     }
 
@@ -127,7 +496,8 @@ export const ReportItemForm = () => {
       securityQuestions: [
         { question: formData.securityQuestion1, answer: formData.securityAnswer1 },
         formData.securityQuestion2 && { question: formData.securityQuestion2, answer: formData.securityAnswer2 },
-        formData.securityQuestion3 && { question: formData.securityQuestion3, answer: formData.securityAnswer3 }
+        formData.securityQuestion3 && { question: formData.securityQuestion3, answer: formData.securityAnswer3 },
+        formData.securityQuestion4 && { question: formData.securityQuestion4, answer: formData.securityAnswer4 }
       ].filter(Boolean) as { question: string; answer: string }[],
       reportedBy: currentUser.id,
     };
@@ -157,13 +527,14 @@ export const ReportItemForm = () => {
     
     toast.success('Item reported successfully!');
     setSubmitted(true);
+    clearFormData(); // Clear localStorage after successful submission
   };
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center py-4 px-4">
         <Card className="w-full max-w-md shadow-xl">
-          <CardContent className="pt-8 pb-6 px-6 text-center space-y-4">
+          <CardContent className="pt-8 pb-6 px-6 space-y-5 text-center">
             <motion.div 
               className="flex justify-center"
               initial={{ scale: 0 }}
@@ -228,12 +599,29 @@ export const ReportItemForm = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground border-b border-primary/20 shadow-md">
+      <header className="sticky top-0 z-50 bg-primary text-primary-foreground border-b border-primary/20 shadow-md">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <Button variant="secondary" size="sm" onClick={() => setCurrentPage('board')} className="bg-accent text-accent-foreground hover:bg-accent/90 hover:shadow-lg transition-all w-full sm:w-auto">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Board
           </Button>
+        </div>
+        
+        {/* Progress Bar - Inside sticky header */}
+        <div className="bg-background border-t border-border pt-6 pb-4">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="h-full bg-accent transition-all duration-300 ease-out"
+                    style={{ width: `${completionPercentage}%` }}
+                  />
+                </div>
+              </div>
+              <span className="font-mono text-primary min-w-[3rem] text-right">{completionPercentage}%</span>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -249,8 +637,14 @@ export const ReportItemForm = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="itemType">Item Type *</Label>
-                <Select value={formData.itemType} onValueChange={(value) => setFormData({...formData, itemType: value})}>
-                  <SelectTrigger>
+                <Select 
+                  value={formData.itemType} 
+                  onValueChange={(value) => {
+                    setFormData({...formData, itemType: value});
+                    setTouched({...touched, itemType: true});
+                  }}
+                >
+                  <SelectTrigger className={cn(errors.itemType && "border-destructive focus:ring-destructive")}>
                     <SelectValue placeholder="Select item type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,6 +658,9 @@ export const ReportItemForm = () => {
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.itemType && (
+                  <p className="text-sm text-destructive">Please select an item type</p>
+                )}
               </div>
 
               {formData.itemType === 'Other' && (
@@ -433,76 +830,126 @@ export const ReportItemForm = () => {
               <div className="border-t pt-6">
                 <h3 className="mb-2">Security Questions</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Set up security questions to help verify the rightful owner. Add at least one question. If you add an optional question, you must also provide an answer.
+                  Answer the security questions below to help verify the rightful owner. Questions are automatically set based on the item type.
                 </p>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Question 1 *</Label>
+                    <Label className="text-base">Question 1 *</Label>
+                    <div className="bg-accent/10 border-2 border-accent/30 rounded-lg p-3">
+                      <p className="text-foreground leading-relaxed">{formData.securityQuestion1 || 'Please select an item type first'}</p>
+                    </div>
                     <Input
-                      placeholder="e.g., What color is the item?"
-                      value={formData.securityQuestion1}
-                      onChange={(e) => setFormData({...formData, securityQuestion1: e.target.value})}
-                      maxLength={100}
-                      required
-                    />
-                    <Input
-                      placeholder="Answer"
+                      placeholder={formData.itemType ? "Your answer" : "Select item type first"}
                       value={formData.securityAnswer1}
                       onChange={(e) => setFormData({...formData, securityAnswer1: e.target.value})}
+                      onBlur={() => setTouched({...touched, securityAnswer1: true})}
+                      className={cn(errors.securityAnswer1 && "border-destructive focus-visible:ring-destructive")}
                       maxLength={100}
+                      disabled={!formData.itemType}
                       required
                     />
+                    {errors.securityAnswer1 && (
+                      <p className="text-sm text-destructive">Please answer this question</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Question 2 (Optional)</Label>
+                    <Label className="text-base">Question 2 *</Label>
+                    <div className="bg-accent/10 border-2 border-accent/30 rounded-lg p-3">
+                      <p className="text-foreground leading-relaxed">{formData.securityQuestion2 || 'Please select an item type first'}</p>
+                    </div>
                     <Input
-                      placeholder="e.g., What brand is it?"
-                      value={formData.securityQuestion2}
-                      onChange={(e) => setFormData({...formData, securityQuestion2: e.target.value})}
-                      maxLength={100}
-                    />
-                    <Input
-                      placeholder="Answer"
+                      placeholder={formData.itemType ? "Your answer" : "Select item type first"}
                       value={formData.securityAnswer2}
                       onChange={(e) => setFormData({...formData, securityAnswer2: e.target.value})}
+                      onBlur={() => setTouched({...touched, securityAnswer2: true})}
+                      className={cn(errors.securityAnswer2 && "border-destructive focus-visible:ring-destructive")}
                       maxLength={100}
+                      disabled={!formData.itemType}
+                      required
                     />
+                    {errors.securityAnswer2 && (
+                      <p className="text-sm text-destructive">Please answer this question</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Question 3 (Optional)</Label>
+                    <Label className="text-base">Question 3 *</Label>
+                    <div className="bg-accent/10 border-2 border-accent/30 rounded-lg p-3">
+                      <p className="text-foreground leading-relaxed">{formData.securityQuestion3 || 'Please select an item type first'}</p>
+                    </div>
                     <Input
-                      placeholder="e.g., Any unique marks or features?"
-                      value={formData.securityQuestion3}
-                      onChange={(e) => setFormData({...formData, securityQuestion3: e.target.value})}
-                      maxLength={100}
-                    />
-                    <Input
-                      placeholder="Answer"
+                      placeholder={formData.itemType ? "Your answer" : "Select item type first"}
                       value={formData.securityAnswer3}
                       onChange={(e) => setFormData({...formData, securityAnswer3: e.target.value})}
+                      onBlur={() => setTouched({...touched, securityAnswer3: true})}
+                      className={cn(errors.securityAnswer3 && "border-destructive focus-visible:ring-destructive")}
                       maxLength={100}
+                      disabled={!formData.itemType}
+                      required
                     />
+                    {errors.securityAnswer3 && (
+                      <p className="text-sm text-destructive">Please answer this question</p>
+                    )}
                   </div>
+
+                  {formData.securityQuestion4 && formData.securityQuestion4.trim() !== '' && (
+                    <div className="space-y-2">
+                      <Label className="text-base">Question 4 *</Label>
+                      <div className="bg-accent/10 border-2 border-accent/30 rounded-lg p-3">
+                        <p className="text-foreground leading-relaxed">{formData.securityQuestion4}</p>
+                      </div>
+                      <Input
+                        placeholder="Your answer"
+                        value={formData.securityAnswer4}
+                        onChange={(e) => setFormData({...formData, securityAnswer4: e.target.value})}
+                        onBlur={() => setTouched({...touched, securityAnswer4: true})}
+                        className={cn(errors.securityAnswer4 && "border-destructive focus-visible:ring-destructive")}
+                        maxLength={100}
+                        required
+                      />
+                      {errors.securityAnswer4 && (
+                        <p className="text-sm text-destructive">Please answer this question</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <Button type="submit" className="w-full py-6" disabled={uploading}>
-                {uploading ? (
-                  <>
-                    <Upload className="h-4 w-4 mr-2 animate-spin" />
-                    Uploading Photo...
-                  </>
-                ) : (
-                  'Submit Report'
-                )}
-              </Button>
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-6">
+                <Button type="submit" className="w-full py-6" disabled={uploading}>
+                  {uploading ? (
+                    <>
+                      <Upload className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    'Submit Report'
+                  )}
+                </Button>
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm"
+                  className="w-full" 
+                  onClick={() => {
+                    if (confirm('Are you sure you want to clear the form? All entered data will be lost.')) {
+                      clearFormData();
+                      toast.success('Form cleared successfully');
+                    }
+                  }}
+                  disabled={uploading}
+                >
+                  Clear Form
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
       </div>
+      <BackToTopButton />
     </div>
   );
 };

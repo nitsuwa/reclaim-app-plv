@@ -259,7 +259,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!session?.user) {
-        console.log('🚪 No session');
+        console.log('🚪 No session - redirecting to landing');
+        
+        // ✅ CLEAR FORM DATA WHEN NO SESSION
+        localStorage.removeItem('reportItemFormData');
+        localStorage.removeItem('reportItemPhotoPreview');
+        localStorage.removeItem('reportItemSelectedDate');
+        
+        // ✅ REDIRECT TO LANDING IF ON AUTHENTICATED PAGES
+        const authenticatedPages = ['board', 'report', 'claim', 'profile', 'admin'];
+        if (savedPage && authenticatedPages.includes(savedPage)) {
+          console.log('🔄 Clearing authenticated page from localStorage:', savedPage);
+          localStorage.removeItem('plv_current_page');
+          setCurrentPage('landing');
+        }
+        
         setCurrentUser(null);
         setLoading(false);
         initialCheckDone = true;
@@ -318,6 +332,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         if (event === 'SIGNED_OUT') {
           console.log('👋 User signed out');
+          
+          // ✅ CLEAR FORM DATA ON LOGOUT
+          localStorage.removeItem('reportItemFormData');
+          localStorage.removeItem('reportItemPhotoPreview');
+          localStorage.removeItem('reportItemSelectedDate');
+          console.log('🧹 Cleared form data on logout');
           
           // ✅ DON'T REDIRECT IF ON AUTH FLOW PAGES - let them handle their own navigation
           const authFlowPages = ['reset-password', 'email-verified'];

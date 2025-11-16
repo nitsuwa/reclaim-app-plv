@@ -6,6 +6,7 @@ import { ActivitySection } from './profile/ActivitySection';
 import { getUserReportedItems, getUserClaimsWithItems, getUserActivityLogs } from '../lib/supabase/database';
 import { LostItem, Claim, ActivityLog } from '../types';
 import { Loader2 } from 'lucide-react';
+import { BackToTopButton } from './BackToTopButton';
 
 export const ProfilePage = () => {
   const { currentUser, setCurrentPage, markNotificationsAsViewed } = useApp();
@@ -21,6 +22,11 @@ export const ProfilePage = () => {
     setCurrentPage('admin');
     return null;
   }
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   // Load user's reported items, claims, and activity logs from database
   useEffect(() => {
@@ -144,6 +150,7 @@ export const ProfilePage = () => {
           </div>
         </div>
       </div>
+      <BackToTopButton />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { PLVLogo } from './PLVLogo';
 import { useApp } from '../context/AppContext';
 import { Footer } from './Footer';
 import { motion } from 'motion/react';
+import { BackToTopButton } from './BackToTopButton';
 
 export const LandingPage = () => {
   const { setCurrentPage } = useApp();
@@ -200,7 +201,7 @@ export const LandingPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
                 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight"
-                style={{ fontWeight: 800 }}
+                style={{ fontWeight: 800, fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
               >
                 Lost Something?
                 <br />
@@ -243,7 +244,7 @@ export const LandingPage = () => {
                 onClick={() => setCurrentPage('register')}
                 className="bg-white text-primary hover:bg-white/90 shadow-2xl text-base sm:text-lg h-12 sm:h-14 px-8 sm:px-12 rounded-full transition-all hover:scale-105"
               >
-                Get Started
+                Register Now
               </Button>
               <Button 
                 size="lg"
@@ -266,7 +267,7 @@ export const LandingPage = () => {
             viewport={{ once: true }}
             className="text-center mb-12 md:mb-16"
           >
-            <h2 className="text-primary mb-4 text-3xl md:text-4xl">
+            <h2 className="text-primary mb-4 text-3xl md:text-4xl" style={{ fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
               Simple Steps to <span className="text-accent">Reclaim</span> Your Belongings
             </h2>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
@@ -291,7 +292,7 @@ export const LandingPage = () => {
                       <div className="mx-auto h-20 w-20 md:h-24 md:w-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform border-4 border-primary/30">
                         <Icon className="h-10 w-10 md:h-12 md:w-12 text-primary" />
                       </div>
-                      <h3 className="text-primary text-xl md:text-2xl" style={{ fontWeight: 600 }}>{feature.title}</h3>
+                      <h3 className="text-primary text-xl md:text-2xl" style={{ fontWeight: 600, fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>{feature.title}</h3>
                       <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
                         {feature.description}
                       </p>
@@ -313,7 +314,7 @@ export const LandingPage = () => {
             viewport={{ once: true }}
             className="text-center mb-16 md:mb-20"
           >
-            <h2 className="text-primary mb-5 text-4xl md:text-5xl">
+            <h2 className="text-primary mb-5 text-4xl md:text-5xl" style={{ fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
               Why Choose <span className="text-accent">ReClaim</span>?
             </h2>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
@@ -343,7 +344,7 @@ export const LandingPage = () => {
                       </div>
                       
                       <div className="space-y-3">
-                        <h3 className="text-primary text-xl md:text-2xl" style={{ fontWeight: 600 }}>{benefit.title}</h3>
+                        <h3 className="text-primary text-xl md:text-2xl" style={{ fontWeight: 600, fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>{benefit.title}</h3>
                         <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
                           {benefit.description}
                         </p>
@@ -374,7 +375,7 @@ export const LandingPage = () => {
             viewport={{ once: true }}
             className="space-y-8 md:space-y-10"
           >
-            <h2 className="text-white text-4xl md:text-5xl lg:text-6xl px-4" style={{ fontWeight: 700 }}>
+            <h2 className="text-white text-4xl md:text-5xl lg:text-6xl px-4" style={{ fontWeight: 700, fontFamily: "'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
               <span className="relative inline-block">
                 <span className="relative z-10" style={{ 
                   textShadow: '0 0 30px rgba(77, 166, 255, 0.5), 0 0 60px rgba(77, 166, 255, 0.3)'
@@ -410,6 +411,9 @@ export const LandingPage = () => {
       <div id="contact">
         <Footer />
       </div>
+
+      {/* Back to Top Button */}
+      <BackToTopButton />
     </div>
   );
 };

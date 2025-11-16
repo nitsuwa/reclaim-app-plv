@@ -72,6 +72,100 @@ export const RegisterPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Real-time validation helpers
+  const validateStudentId = (value: string) => {
+    if (!value.trim()) return '';
+    if (!/^\d{2}-\d{4}$/.test(value)) {
+      return 'Invalid format. Use: 23-1234';
+    }
+    return '';
+  };
+
+  const validateContactNumber = (value: string) => {
+    if (!value.trim()) return '';
+    if (!/^09\d{9}$/.test(value)) {
+      return 'Invalid format. Use: 09XXXXXXXXX';
+    }
+    return '';
+  };
+
+  const validateEmail = (value: string) => {
+    if (!value.trim()) return '';
+    if (value.includes('@')) {
+      return 'Only enter the part before @plv.edu.ph';
+    }
+    return '';
+  };
+
+  // Auto-format student ID with dash
+  const handleStudentIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    
+    // Only allow numbers and dash
+    value = value.replace(/[^\d-]/g, '');
+    
+    // Remove all dashes first
+    const numbersOnly = value.replace(/-/g, '');
+    
+    // Limit to 6 digits max
+    const limitedNumbers = numbersOnly.slice(0, 6);
+    
+    // Auto-format with dash after 2 digits
+    let formatted = limitedNumbers;
+    if (limitedNumbers.length > 2) {
+      formatted = `${limitedNumbers.slice(0, 2)}-${limitedNumbers.slice(2)}`;
+    }
+    
+    setFormData({ ...formData, studentId: formatted });
+    
+    // Real-time validation
+    if (formatted) {
+      const error = validateStudentId(formatted);
+      setErrors({ ...errors, studentId: error });
+    } else {
+      setErrors({ ...errors, studentId: '' });
+    }
+  };
+
+  // Handle contact number - only allow numbers and proper format
+  const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    
+    // Only allow numbers
+    value = value.replace(/\D/g, '');
+    
+    // Limit to 11 digits
+    value = value.slice(0, 11);
+    
+    setFormData({ ...formData, contactNumber: value });
+    
+    // Real-time validation
+    if (value) {
+      const error = validateContactNumber(value);
+      setErrors({ ...errors, contactNumber: error });
+    } else {
+      setErrors({ ...errors, contactNumber: '' });
+    }
+  };
+
+  // Handle email - don't allow @ symbol
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    
+    // Remove @ symbol if user tries to type it
+    value = value.replace(/@/g, '');
+    
+    setFormData({ ...formData, email: value });
+    
+    // Real-time validation
+    if (value) {
+      const error = validateEmail(value);
+      setErrors({ ...errors, email: error });
+    } else {
+      setErrors({ ...errors, email: '' });
+    }
+  };
+
   const getPasswordStrength = () => {
     const password = formData.password;
     if (!password) return { strength: 0, label: '', color: '' };
@@ -214,10 +308,7 @@ export const RegisterPage = () => {
                   type="text"
                   placeholder="23-1234"
                   value={formData.studentId}
-                  onChange={(e) => {
-                    setFormData({...formData, studentId: e.target.value});
-                    setErrors({...errors, studentId: ''});
-                  }}
+                  onChange={handleStudentIdChange}
                   className={`h-12 border-2 transition-all ${errors.studentId ? 'border-destructive' : 'focus:border-accent'}`}
                   disabled={isLoading}
                 />
@@ -236,10 +327,7 @@ export const RegisterPage = () => {
                   type="tel"
                   placeholder="09123456789"
                   value={formData.contactNumber}
-                  onChange={(e) => {
-                    setFormData({...formData, contactNumber: e.target.value});
-                    setErrors({...errors, contactNumber: ''});
-                  }}
+                  onChange={handleContactNumberChange}
                   className={`h-12 border-2 transition-all ${errors.contactNumber ? 'border-destructive' : 'focus:border-accent'}`}
                   disabled={isLoading}
                 />
@@ -259,10 +347,7 @@ export const RegisterPage = () => {
                     type="text"
                     placeholder="juan.delacruz"
                     value={formData.email}
-                    onChange={(e) => {
-                      setFormData({...formData, email: e.target.value});
-                      setErrors({...errors, email: ''});
-                    }}
+                    onChange={handleEmailChange}
                     className={`h-12 border-2 transition-all pr-32 ${errors.email ? 'border-destructive' : 'focus:border-accent'}`}
                     disabled={isLoading}
                   />

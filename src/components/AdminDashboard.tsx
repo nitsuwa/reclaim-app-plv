@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -15,6 +15,7 @@ import { toast } from 'sonner@2.0.3';
 import { AdminManagement } from './AdminManagement';
 import { getPendingItems, getVerifiedItems, getClaimedItems, getPendingClaims, getAllClaims, updateItemStatus, updateClaimStatus, getAdminActivityLogs, clearAdminActivityLogs, logAdminActivity, createNotification } from '../lib/supabase/database';
 import { LostItem, Claim } from '../types';
+import { BackToTopButton } from './BackToTopButton';
 
 // Admin Activity Log type
 interface AdminActivityLog {
@@ -66,10 +67,24 @@ export const AdminDashboard = () => {
   const [clearAdminLogsConfirmText, setClearAdminLogsConfirmText] = useState('');
   const [processing, setProcessing] = useState(false); // Prevent double-clicks
   
+  // Filter states for clickable stat cards
+  const [itemReportFilter, setItemReportFilter] = useState<'all' | 'pending' | 'verified'>('all');
+  const [claimFilter, setClaimFilter] = useState<'all' | 'pending' | 'claimed'>('all');
+  const [modalUnblurredPhotos, setModalUnblurredPhotos] = useState<Set<string>>(new Set());
+  
+  // Refs for scrolling to sections
+  const pendingReportsRef = useRef<HTMLDivElement>(null);
+  const verifiedItemsRef = useRef<HTMLDivElement>(null);
+  const pendingClaimsRef = useRef<HTMLDivElement>(null);
+  const claimedItemsRef = useRef<HTMLDivElement>(null);
+  
   // Tab persistence
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('admin-active-tab') || 'reports';
   });
+  
+  // Scroll target state
+  const [scrollTarget, setScrollTarget] = useState<React.RefObject<HTMLDivElement> | null>(null);
   
   // Confirmation dialog states
   const [confirmAction, setConfirmAction] = useState<{
@@ -153,6 +168,41 @@ export const AdminDashboard = () => {
       setAdminActivityLogs(adminLogsResult.data);
     }
   };
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  // Handle scrolling after tab change
+  useEffect(() => {
+    if (scrollTarget) {
+      // Wait for tab content to render, then scroll
+      const timeoutId = setTimeout(() => {
+        if (scrollTarget.current) {
+          // Use requestAnimationFrame to ensure DOM is painted
+          requestAnimationFrame(() => {
+            if (scrollTarget.current) {
+              const element = scrollTarget.current;
+              const headerOffset = 120;
+              const elementPosition = element.getBoundingClientRect().top;
+              const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+              window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+              });
+            }
+            setScrollTarget(null);
+          });
+        } else {
+          setScrollTarget(null);
+        }
+      }, 400); // Increased to 400ms to ensure tab content is fully rendered
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeTab, scrollTarget]);
 
   // Clipboard copy helper
   const copyToClipboard = async (text: string) => {
@@ -528,7 +578,6 @@ export const AdminDashboard = () => {
   };
 
 
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -561,7 +610,14 @@ export const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="shadow-md border border-border hover:shadow-lg transition-shadow">
+          <Card 
+            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-accent"
+            onClick={() => {
+              setActiveTab('reports');
+              localStorage.setItem('admin-active-tab', 'reports');
+              setScrollTarget(pendingReportsRef);
+            }}
+          >
             <CardHeader className="pb-6 pt-6 px-6 border-b-0">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-base">Pending Reports</CardDescription>
@@ -571,7 +627,14 @@ export const AdminDashboard = () => {
             </CardHeader>
           </Card>
           
-          <Card className="shadow-md border border-border hover:shadow-lg transition-shadow">
+          <Card 
+            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-primary"
+            onClick={() => {
+              setActiveTab('reports');
+              localStorage.setItem('admin-active-tab', 'reports');
+              setScrollTarget(verifiedItemsRef);
+            }}
+          >
             <CardHeader className="pb-6 pt-6 px-6 border-b-0">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-base">Verified Items</CardDescription>
@@ -581,7 +644,14 @@ export const AdminDashboard = () => {
             </CardHeader>
           </Card>
           
-          <Card className="shadow-md border border-border hover:shadow-lg transition-shadow">
+          <Card 
+            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-accent"
+            onClick={() => {
+              setActiveTab('claims');
+              localStorage.setItem('admin-active-tab', 'claims');
+              setScrollTarget(pendingClaimsRef);
+            }}
+          >
             <CardHeader className="pb-6 pt-6 px-6 border-b-0">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-base">Pending Claims</CardDescription>
@@ -591,13 +661,20 @@ export const AdminDashboard = () => {
             </CardHeader>
           </Card>
           
-          <Card className="shadow-md border border-border hover:shadow-lg transition-shadow">
+          <Card 
+            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-green-600"
+            onClick={() => {
+              setActiveTab('claims');
+              localStorage.setItem('admin-active-tab', 'claims');
+              setScrollTarget(claimedItemsRef);
+            }}
+          >
             <CardHeader className="pb-6 pt-6 px-6 border-b-0">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-base">Claimed Items</CardDescription>
-                <CheckSquare className="h-5 w-5 text-neutral-accent" />
+                <CheckSquare className="h-5 w-5 text-green-600" />
               </div>
-              <CardTitle className="text-neutral-accent mt-3">{claimedItems.length}</CardTitle>
+              <CardTitle className="text-green-600 mt-3">{claimedItems.length}</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -606,6 +683,7 @@ export const AdminDashboard = () => {
         <Tabs value={activeTab} onValueChange={(value) => {
           setActiveTab(value);
           localStorage.setItem('admin-active-tab', value);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }} className="space-y-6">
           <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full md:w-auto">
             <TabsTrigger value="reports">Item Reports</TabsTrigger>
@@ -625,11 +703,12 @@ export const AdminDashboard = () => {
 
           {/* PENDING ITEMS TAB */}
           <TabsContent value="reports" className="space-y-4">
-            <Card className="shadow-sm border border-border">
-              <CardHeader>
-                <CardTitle>Pending Item Reports</CardTitle>
-                <CardDescription>Review and verify found item reports</CardDescription>
-              </CardHeader>
+            <div ref={pendingReportsRef}>
+              <Card className="shadow-sm border border-border">
+                <CardHeader>
+                  <CardTitle>Pending Item Reports</CardTitle>
+                  <CardDescription>Review and verify found item reports</CardDescription>
+                </CardHeader>
               <CardContent>
                 {pendingItems.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No pending reports</p>
@@ -733,13 +812,15 @@ export const AdminDashboard = () => {
                   </ScrollArea>
                 )}
               </CardContent>
-            </Card>
+              </Card>
+            </div>
 
-            <Card className="shadow-sm border border-border">
-              <CardHeader>
-                <CardTitle>Verified Items</CardTitle>
-                <CardDescription>Items currently on the Lost & Found Board</CardDescription>
-              </CardHeader>
+            <div ref={verifiedItemsRef}>
+              <Card className="shadow-sm border border-border">
+                <CardHeader>
+                  <CardTitle>Verified Items</CardTitle>
+                  <CardDescription>Items currently on the Lost & Found Board</CardDescription>
+                </CardHeader>
               <CardContent>
                 {verifiedItems.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No verified items</p>
@@ -818,16 +899,18 @@ export const AdminDashboard = () => {
                   </ScrollArea>
                 )}
               </CardContent>
-            </Card>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* CLAIMS TAB */}
-          <TabsContent value="claims">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Claims</CardTitle>
-                <CardDescription>Review and approve claim requests</CardDescription>
-              </CardHeader>
+          <TabsContent value="claims" className="space-y-4">
+            <div ref={pendingClaimsRef}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Claims</CardTitle>
+                  <CardDescription>Review and approve claim requests</CardDescription>
+                </CardHeader>
               <CardContent>
                 {pendingClaims.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">No pending claims</p>
@@ -912,7 +995,148 @@ export const AdminDashboard = () => {
                   </ScrollArea>
                 )}
               </CardContent>
-            </Card>
+              </Card>
+            </div>
+
+            {/* CLAIMED ITEMS SECTION */}
+            <div ref={claimedItemsRef}>
+              <Card className="shadow-sm border border-border">
+                <CardHeader>
+                  <CardTitle>Claimed Items</CardTitle>
+                  <CardDescription>Items that have been successfully claimed and released</CardDescription>
+                </CardHeader>
+              <CardContent>
+                {claimedItems.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No claimed items</p>
+                ) : (
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="space-y-4">
+                      {claimedItems.map(item => {
+                        // Find the corresponding approved claim
+                        const claim = allClaims.find(c => c.itemId === item.id && c.status === 'approved');
+                        return (
+                          <div key={item.id} className="border border-border rounded-lg p-4">
+                            <div className="flex items-start gap-4">
+                              <div 
+                                className="relative w-24 h-24 cursor-pointer group/photo flex-shrink-0 bg-muted rounded flex items-center justify-center overflow-hidden"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const hasRealPhoto = item.photoUrl && 
+                                                      item.photoUrl.trim() !== '' && 
+                                                      !item.photoUrl.includes('unsplash.com') &&
+                                                      item.photoUrl.startsWith('http');
+                                  if (hasRealPhoto) {
+                                    setUnblurredPhotos(prev => {
+                                      const newSet = new Set(prev);
+                                      if (newSet.has(item.id)) {
+                                        newSet.delete(item.id);
+                                      } else {
+                                        newSet.add(item.id);
+                                      }
+                                      return newSet;
+                                    });
+                                  }
+                                }}
+                              >
+                                {(() => {
+                                  const hasRealPhoto = item.photoUrl && 
+                                                      item.photoUrl.trim() !== '' && 
+                                                      !item.photoUrl.includes('unsplash.com') &&
+                                                      item.photoUrl.startsWith('http');
+                                  return hasRealPhoto ? (
+                                    <>
+                                      <img
+                                        src={item.photoUrl}
+                                        alt={item.itemType}
+                                        className={`w-24 h-24 object-cover rounded transition-all ${
+                                          unblurredPhotos.has(item.id) ? '' : 'blur-md'
+                                        }`}
+                                      />
+                                      {!unblurredPhotos.has(item.id) && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded group-hover/photo:bg-black/40 transition-colors">
+                                          <Eye className="h-6 w-6 text-white group-hover/photo:scale-110 transition-transform" />
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <Package className="h-10 w-10 text-muted-foreground opacity-40" />
+                                  );
+                                })()}
+                              </div>
+                              <div className="flex-1 space-y-3 min-w-0">
+                                <div className="space-y-2">
+                                  <h4 className="text-primary break-words font-semibold">
+                                    {item.itemType}
+                                    {item.otherItemTypeDetails && ` - ${item.otherItemTypeDetails}`}
+                                  </h4>
+                                  {item.description && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2 break-words">
+                                      {item.description}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-muted-foreground break-words">
+                                    Found at {item.location} on {new Date(item.dateFound).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                
+                                {/* Reporter Info */}
+                                <div className="space-y-2 pt-2 border-t border-border/40">
+                                  <p className="text-sm break-words leading-relaxed">
+                                    <span className="text-muted-foreground">Reported By:</span>{' '}
+                                    <span className="text-foreground uppercase tracking-wide">{item.reporterName || 'Unknown'}</span>
+                                  </p>
+                                  <p className="text-sm break-words leading-relaxed">
+                                    <span className="text-muted-foreground">Reporter Student ID:</span>{' '}
+                                    <span className="font-mono text-foreground">{item.reporterStudentId || 'N/A'}</span>
+                                  </p>
+                                </div>
+                                
+                                {/* Claimer Info */}
+                                {claim && (
+                                  <div className="space-y-2 pt-2 border-t border-border/40">
+                                    <p className="text-sm break-words leading-relaxed">
+                                      <span className="text-muted-foreground">Claimed By:</span>{' '}
+                                      <span className="text-foreground uppercase tracking-wide">{claim.claimantName || 'Unknown'}</span>
+                                    </p>
+                                    <p className="text-sm break-words leading-relaxed">
+                                      <span className="text-muted-foreground">Claimer Student ID:</span>{' '}
+                                      <span className="font-mono text-foreground">{claim.claimantStudentId || 'N/A'}</span>
+                                    </p>
+                                    <p className="text-sm break-words leading-relaxed">
+                                      <span className="text-muted-foreground">Claim Code:</span>{' '}
+                                      <code 
+                                        className="bg-muted px-2 py-1 rounded text-primary hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(claim.claimCode);
+                                        }}
+                                      >
+                                        {claim.claimCode}
+                                      </code>
+                                    </p>
+                                    <p className="text-sm break-words leading-relaxed">
+                                      <span className="text-muted-foreground">Claimed On:</span>{' '}
+                                      <span className="text-foreground">
+                                        {claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}
+                                      </span>
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge variant="default" className="bg-green-600 text-white flex-shrink-0">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Claimed
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* LOOKUP TAB */}
@@ -974,7 +1198,7 @@ export const AdminDashboard = () => {
                               <img 
                                 src={item.photoUrl} 
                                 alt="Original item" 
-                                className="w-full max-w-md h-64 object-cover rounded-lg border-2 border-border" 
+                                className="w-full max-w-md h-56 object-cover rounded-lg border-2 border-border mx-auto" 
                               />
                             </div>
                           )}
@@ -1038,24 +1262,45 @@ export const AdminDashboard = () => {
                             <img 
                               src={lookupClaim.proofPhotoUrl} 
                               alt="Proof of ownership" 
-                              className="w-full max-w-md h-64 object-cover rounded-lg border-2 border-accent/30"
+                              className="w-full max-w-md h-56 object-cover rounded-lg border-2 border-accent/30 mx-auto"
                             />
                           </div>
                         )}
 
-                        {/* Security Answers */}
+                        {/* Security Questions - Side by Side Comparison */}
                         <div className="space-y-2">
-                          <p className="text-sm font-semibold">Security Questions & Answers:</p>
-                          {lookupClaim.answers.map((answer, idx) => (
-                            <div key={idx} className="text-sm bg-card border border-border p-3 rounded">
-                              <p className="text-muted-foreground mb-1">
-                                <strong>Q{idx + 1}:</strong> {item?.securityQuestions[idx]?.question}
-                              </p>
-                              <p>
-                                <span className="text-muted-foreground">Answer:</span> {answer}
-                              </p>
+                          <p className="text-sm font-semibold text-primary mb-3">Security Questions & Answers Comparison</p>
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* LEFT: Original Answers (Reporter's) */}
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Original Answers (Reporter)</p>
+                              {item.securityQuestions.map((sq, idx) => (
+                                <div key={`orig-${idx}`} className="text-sm bg-muted/50 border border-border p-3 rounded">
+                                  <p className="text-muted-foreground mb-1.5 text-xs">
+                                    <strong>Q{idx + 1}:</strong> {sq.question}
+                                  </p>
+                                  <p className="text-primary font-medium">
+                                    {sq.answer}
+                                  </p>
+                                </div>
+                              ))}
                             </div>
-                          ))}
+
+                            {/* RIGHT: Claimant's Answers */}
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-accent uppercase tracking-wide mb-2">Claimant's Answers</p>
+                              {lookupClaim.answers.map((answer, idx) => (
+                                <div key={`claim-${idx}`} className="text-sm bg-accent/10 border border-accent/30 p-3 rounded">
+                                  <p className="text-muted-foreground mb-1.5 text-xs">
+                                    <strong>Q{idx + 1}:</strong> {item.securityQuestions[idx]?.question}
+                                  </p>
+                                  <p className="text-accent font-medium">
+                                    {answer}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1259,100 +1504,130 @@ export const AdminDashboard = () => {
 
        {/* Item Review Dialog - WITH SECURITY ANSWERS */}
       {selectedItemData && (
-        <Dialog open={showItemDialog} onOpenChange={setShowItemDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
-            <DialogHeader>
+        <Dialog 
+          open={showItemDialog} 
+          onOpenChange={(open) => {
+            setShowItemDialog(open);
+            if (!open) {
+              // Reset modal blur state when dialog closes
+              setModalUnblurredPhotos(new Set());
+            }
+          }}
+        >
+          <DialogContent className="!max-w-[900px] w-full !h-[90vh] overflow-hidden flex flex-col p-4" style={{ maxWidth: '900px', width: '900px', height: '90vh' }}>
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Review Item Report</DialogTitle>
               <DialogDescription>
                 Verify the item details and approve or reject the report
               </DialogDescription>
+              <Alert className="bg-accent/10 border-accent/30 mt-3">
+                <AlertDescription className="space-y-1">
+                  <p className="text-sm">
+                    <strong>Reporter:</strong> {selectedItemData.reporterName || 'Unknown'}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Student ID:</strong> <span className="font-mono">{selectedItemData.reporterStudentId || 'N/A'}</span>
+                  </p>
+                </AlertDescription>
+              </Alert>
             </DialogHeader>
-            <div className="space-y-4 overflow-x-hidden">
-              {(() => {
-                const hasRealPhoto = selectedItemData.photoUrl && 
-                                    selectedItemData.photoUrl.trim() !== '' && 
-                                    !selectedItemData.photoUrl.includes('unsplash.com') &&
-                                    selectedItemData.photoUrl.startsWith('http');
-                return hasRealPhoto ? (
-                  <img 
-                    src={selectedItemData.photoUrl} 
-                    alt={selectedItemData.itemType} 
-                    className="w-full h-64 object-cover rounded-lg" 
-                  />
-                ) : (
-                  <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <Package className="h-16 w-16 text-muted-foreground mx-auto mb-2 opacity-40" />
-                      <p className="text-sm text-muted-foreground">No photo available</p>
+            
+            {/* Side-by-side content */}
+            <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+              {/* LEFT: Item Details */}
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+                <h4 className="font-semibold text-primary flex-shrink-0">Item Details</h4>
+                
+                {/* Item Photo */}
+                {(() => {
+                  const hasRealPhoto = selectedItemData.photoUrl && 
+                                      selectedItemData.photoUrl.trim() !== '' && 
+                                      !selectedItemData.photoUrl.includes('unsplash.com') &&
+                                      selectedItemData.photoUrl.startsWith('http');
+                  return hasRealPhoto ? (
+                    <div className="flex-shrink-0">
+                      <p className="text-xs text-muted-foreground mb-1.5">Item Photo</p>
+                      <div 
+                        className="relative w-full h-48 cursor-pointer group/modal-photo overflow-hidden rounded-lg"
+                        onClick={() => {
+                          setModalUnblurredPhotos(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(selectedItemData.id)) {
+                              newSet.delete(selectedItemData.id);
+                            } else {
+                              newSet.add(selectedItemData.id);
+                            }
+                            return newSet;
+                          });
+                        }}
+                      >
+                        <img 
+                          src={selectedItemData.photoUrl} 
+                          alt={selectedItemData.itemType} 
+                          className={`w-full h-48 object-cover rounded-lg border-2 border-border transition-all ${
+                            modalUnblurredPhotos.has(selectedItemData.id) ? '' : 'blur-md'
+                          }`}
+                        />
+                        {!modalUnblurredPhotos.has(selectedItemData.id) && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg group-hover/modal-photo:bg-black/40 transition-colors">
+                            <Eye className="h-6 w-6 text-white group-hover/modal-photo:scale-110 transition-transform" />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
-              <div className="space-y-3 overflow-x-hidden">
-                {/* Reporter Information Alert Box */}
-                <Alert className="bg-accent/10 border-accent/30">
-                  <AlertDescription className="space-y-2">
-                    <p className="text-sm">
-                      <strong>Reporter:</strong> {selectedItemData.reporterName || 'Unknown'}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Student ID:</strong> <span className="font-mono">{selectedItemData.reporterStudentId || 'N/A'}</span>
-                    </p>
-                  </AlertDescription>
-                </Alert>
+                  ) : null;
+                })()}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Item Type</p>
-                    <p className="text-primary break-words overflow-wrap-anywhere">
+                {/* Item Information */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Item Type</p>
+                    <p className="text-sm font-medium text-primary">
                       {selectedItemData.itemType}
                       {selectedItemData.otherItemTypeDetails && ` - ${selectedItemData.otherItemTypeDetails}`}
                     </p>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Location</p>
-                    <p className="break-words overflow-wrap-anywhere">{selectedItemData.location}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Location Found</p>
+                    <p className="text-sm font-medium">{selectedItemData.location}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date Found</p>
+                    <p className="text-sm font-medium">{new Date(selectedItemData.dateFound).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Time Found</p>
+                    <p className="text-sm font-medium">{selectedItemData.timeFound}</p>
                   </div>
                 </div>
 
                 {selectedItemData.description && (
-                  <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground mb-1">Description</p>
-                    <p className="text-sm break-words whitespace-pre-wrap overflow-wrap-anywhere">{selectedItemData.description}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Description</p>
+                    <p className="text-sm">{selectedItemData.description}</p>
                   </div>
                 )}
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Date Found</p>
-                    <p>{new Date(selectedItemData.dateFound).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Time Found</p>
-                    <p>{selectedItemData.timeFound}</p>
-                  </div>
-                </div>
-
-                {/* SECURITY QUESTIONS & ANSWERS SECTION */}
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground mb-2">Security Questions & Answers</p>
-                  <div className="space-y-2">
-                    {selectedItemData.securityQuestions.map((sq, idx) => (
-                      <div key={idx} className="bg-muted/50 border border-border p-3 rounded-lg min-w-0">
-                        <p className="text-sm mb-2 break-words overflow-wrap-anywhere">
-                          <span className="text-primary">Q{idx + 1}:</span> {sq.question}
-                        </p>
-                        <p className="text-sm break-words overflow-wrap-anywhere">
-                          <span className="text-muted-foreground">Answer:</span>{' '}
-                          <span className="text-accent font-medium">{sq.answer}</span>
-                        </p>
+              {/* RIGHT: Security Questions & Answers */}
+              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+                <h4 className="font-semibold text-accent flex-shrink-0">Security Questions & Answers</h4>
+                
+                <div className="space-y-2">
+                  {selectedItemData.securityQuestions.map((sq, idx) => (
+                    <div key={idx} className="bg-background/50 border border-border/50 p-3 rounded-lg space-y-2">
+                      <p className="text-xs font-medium text-primary">Question {idx + 1}:</p>
+                      <p className="text-sm">{sq.question}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Answer:</p>
+                        <p className="text-sm font-medium text-accent">{sq.answer}</p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 flex-shrink-0 pt-4 mt-2 border-t">
               <Button 
                 variant="outline" 
                 onClick={() => confirmVerifyItem(selectedItemData.id, false)}
@@ -1373,55 +1648,84 @@ export const AdminDashboard = () => {
         </Dialog>
       )}
 
-      {/* Claim Review Dialog */}
+      {/* Claim Review Dialog - Landscape Layout */}
       {selectedClaimData && selectedClaimItem && (
-        <Dialog open={showClaimDialog} onOpenChange={setShowClaimDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
-            <DialogHeader>
+        <Dialog 
+          open={showClaimDialog} 
+          onOpenChange={(open) => {
+            setShowClaimDialog(open);
+            if (!open) {
+              // Reset modal blur state when dialog closes
+              setModalUnblurredPhotos(new Set());
+            }
+          }}
+        >
+          <DialogContent className="!max-w-[900px] w-full !h-[90vh] overflow-hidden flex flex-col p-4" style={{ maxWidth: '900px', width: '900px', height: '90vh' }}>
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Review Claim Request</DialogTitle>
               <DialogDescription>
                 Verify the claimant's answers and approve or reject the claim
               </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 overflow-x-hidden">
-              <Alert className="bg-accent/10 border-accent/30">
-                <AlertDescription className="space-y-2">
-                  <div className="flex items-center justify-between gap-6">
+              <Alert className="bg-accent/10 border-accent/30 mt-3">
+                <AlertDescription className="flex items-center justify-between">
+                  <div className="flex gap-6">
                     <span><strong>Claim Code:</strong> {selectedClaimData.claimCode}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(selectedClaimData.claimCode)}
-                      className="ml-auto"
-                    >
-                      Copy
-                    </Button>
+                    <span><strong>Claimant:</strong> {selectedClaimData.claimantName || 'Unknown'}</span>
+                    <span><strong>Student ID:</strong> <span className="font-mono">{selectedClaimData.claimantStudentId || 'N/A'}</span></span>
                   </div>
-                  <div className="pt-2 border-t border-accent/20">
-                    <p className="text-sm mb-1">
-                      <strong>Claimant:</strong> {selectedClaimData.claimantName || 'Unknown'}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Student ID:</strong> <span className="font-mono">{selectedClaimData.claimantStudentId || 'N/A'}</span>
-                    </p>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => copyToClipboard(selectedClaimData.claimCode)}
+                  >
+                    Copy Code
+                  </Button>
                 </AlertDescription>
               </Alert>
-
-              {/* Original Item Photo & Details */}
-              <div className="border border-border rounded-lg p-4 space-y-3 bg-muted/30">
-                <h4 className="font-semibold text-primary">Original Item Report</h4>
+            </DialogHeader>
+            
+            {/* Side-by-side content */}
+            <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
+              {/* LEFT: Original Item Report */}
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+                <h4 className="font-semibold text-primary flex-shrink-0">Original Item Report</h4>
+                
+                {/* Original Item Photo */}
                 {selectedClaimItem.photoUrl && (
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Item Photo (When Reported)</p>
-                    <img 
-                      src={selectedClaimItem.photoUrl} 
-                      alt="Original item" 
-                      className="w-full h-64 object-cover rounded-lg border-2 border-border" 
-                    />
+                  <div className="flex-shrink-0">
+                    <p className="text-xs text-muted-foreground mb-1.5">Item Photo (When Reported)</p>
+                    <div 
+                      className="relative w-full h-48 cursor-pointer group/modal-photo overflow-hidden rounded-lg"
+                      onClick={() => {
+                        setModalUnblurredPhotos(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(selectedClaimItem.id)) {
+                            newSet.delete(selectedClaimItem.id);
+                          } else {
+                            newSet.add(selectedClaimItem.id);
+                          }
+                          return newSet;
+                        });
+                      }}
+                    >
+                      <img 
+                        src={selectedClaimItem.photoUrl} 
+                        alt="Original item" 
+                        className={`w-full h-48 object-cover rounded-lg border-2 border-border transition-all ${
+                          modalUnblurredPhotos.has(selectedClaimItem.id) ? '' : 'blur-md'
+                        }`}
+                      />
+                      {!modalUnblurredPhotos.has(selectedClaimItem.id) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg group-hover/modal-photo:bg-black/40 transition-colors">
+                          <Eye className="h-6 w-6 text-white group-hover/modal-photo:scale-110 transition-transform" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-3">
+                
+                {/* Item Details */}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <p className="text-xs text-muted-foreground">Item Type</p>
                     <p className="text-sm font-medium text-primary">
@@ -1442,48 +1746,87 @@ export const AdminDashboard = () => {
                     <p className="text-sm font-medium">{selectedClaimItem.reporterName || 'N/A'}</p>
                   </div>
                 </div>
+                
                 {selectedClaimItem.description && (
                   <div>
                     <p className="text-xs text-muted-foreground">Description</p>
                     <p className="text-sm">{selectedClaimItem.description}</p>
                   </div>
                 )}
-              </div>
 
-              {/* Claimant's Proof Photo */}
-              {selectedClaimData.proofPhotoUrl && (
-                <div className="border border-accent/30 rounded-lg p-4 bg-accent/5">
-                  <h4 className="font-semibold text-accent mb-2">Claimant's Proof Photo</h4>
-                  <img 
-                    src={selectedClaimData.proofPhotoUrl} 
-                    alt="Claim proof" 
-                    className="w-full h-64 object-cover rounded-lg border-2 border-accent/30" 
-                  />
-                </div>
-              )}
-
-              <div className="space-y-3 min-w-0">
-                <p className="text-sm text-muted-foreground">Security Questions & Answers</p>
-                {selectedClaimData.answers.map((answer, idx) => (
-                  <div key={idx} className="bg-muted/50 border border-border p-4 rounded-lg space-y-3 min-w-0">
-                    <p className="text-sm break-words overflow-wrap-anywhere">
-                      <span className="text-primary">Question {idx + 1}:</span> {selectedClaimItem.securityQuestions[idx]?.question}
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1">Claimant's Answer</p>
-                        <p className="text-sm text-primary break-words overflow-wrap-anywhere">{answer}</p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1">Correct Answer</p>
-                        <p className="text-sm text-accent break-words overflow-wrap-anywhere">{selectedClaimItem.securityQuestions[idx]?.answer}</p>
+                {/* Security Questions with Correct Answers */}
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-sm font-semibold text-primary">Security Questions & Correct Answers</p>
+                  {selectedClaimItem.securityQuestions.map((sq, idx) => (
+                    <div key={idx} className="bg-background/50 border border-border/50 p-3 rounded-lg space-y-2">
+                      <p className="text-xs font-medium text-primary">Question {idx + 1}:</p>
+                      <p className="text-sm">{sq.question}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Correct Answer:</p>
+                        <p className="text-sm font-medium text-accent">{sq.answer}</p>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* RIGHT: Claimant's Answers */}
+              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+                <h4 className="font-semibold text-accent flex-shrink-0">Claimant's Submission</h4>
+                
+                {/* Claimant's Proof Photo */}
+                {selectedClaimData.proofPhotoUrl && (
+                  <div className="flex-shrink-0">
+                    <p className="text-xs text-muted-foreground mb-1.5">Proof Photo</p>
+                    <div 
+                      className="relative w-full h-48 cursor-pointer group/proof-photo overflow-hidden rounded-lg"
+                      onClick={() => {
+                        setModalUnblurredPhotos(prev => {
+                          const newSet = new Set(prev);
+                          const proofId = `proof-${selectedClaimData.id}`;
+                          if (newSet.has(proofId)) {
+                            newSet.delete(proofId);
+                          } else {
+                            newSet.add(proofId);
+                          }
+                          return newSet;
+                        });
+                      }}
+                    >
+                      <img 
+                        src={selectedClaimData.proofPhotoUrl} 
+                        alt="Claim proof" 
+                        className={`w-full h-48 object-cover rounded-lg border-2 border-accent/30 transition-all ${
+                          modalUnblurredPhotos.has(`proof-${selectedClaimData.id}`) ? '' : 'blur-md'
+                        }`}
+                      />
+                      {!modalUnblurredPhotos.has(`proof-${selectedClaimData.id}`) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg group-hover/proof-photo:bg-black/40 transition-colors">
+                          <Eye className="h-6 w-6 text-white group-hover/proof-photo:scale-110 transition-transform" />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
+                )}
+
+                {/* Claimant's Answers */}
+                <div className="space-y-2 pt-2 border-t border-accent/20">
+                  <p className="text-sm font-semibold text-accent">Claimant's Answers</p>
+                  {selectedClaimData.answers.map((answer, idx) => (
+                    <div key={idx} className="bg-background/50 border border-accent/50 p-3 rounded-lg space-y-2">
+                      <p className="text-xs font-medium text-accent">Question {idx + 1}:</p>
+                      <p className="text-sm">{selectedClaimItem.securityQuestions[idx]?.question}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Claimant's Answer:</p>
+                        <p className="text-sm font-medium text-primary">{answer}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <DialogFooter className="gap-2">
+
+            <DialogFooter className="gap-2 flex-shrink-0 pt-4 mt-2 border-t">
               <Button 
                 variant="outline" 
                 onClick={() => confirmVerifyClaim(selectedClaimData.id, false)}
@@ -1606,6 +1949,7 @@ export const AdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BackToTopButton />
     </div>
   );
 };

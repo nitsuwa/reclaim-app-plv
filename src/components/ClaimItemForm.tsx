@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -10,6 +10,7 @@ import { toast } from 'sonner@2.0.3';
 import { motion } from 'motion/react';
 import { createClaim } from '../lib/supabase/database';
 import { uploadItemPhoto } from '../lib/supabase';
+import { BackToTopButton } from './BackToTopButton';
 
 export const ClaimItemForm = () => {
   const { setCurrentPage, selectedItem, claims, currentUser, addActivityLog, addClaim } = useApp();
@@ -20,6 +21,11 @@ export const ClaimItemForm = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
 
   const handleCopyCode = async () => {
     try {
@@ -47,9 +53,9 @@ export const ClaimItemForm = () => {
   // SUCCESS SCREEN: Show this FIRST before any validation checks (to prevent re-render issues)
   if (step === 2) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center py-4 px-4">
         <Card className="w-full max-w-md shadow-xl">
-          <CardContent className="pt-8 pb-6 px-6 space-y-5">
+          <CardContent className="pt-8 pb-6 px-6 space-y-5 text-center">
             <motion.div 
               className="flex justify-center"
               initial={{ scale: 0 }}
@@ -76,7 +82,6 @@ export const ClaimItemForm = () => {
             </motion.div>
             
             <motion.div 
-              className="text-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
@@ -88,7 +93,7 @@ export const ClaimItemForm = () => {
             </motion.div>
 
             <motion.div 
-              className="bg-accent/10 border-2 border-accent rounded-lg p-6 text-center shadow-inner"
+              className="bg-accent/10 border-2 border-accent rounded-lg p-6 shadow-inner"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5 }}
@@ -108,7 +113,7 @@ export const ClaimItemForm = () => {
               transition={{ delay: 0.7 }}
             >
               <Alert>
-                <AlertDescription>
+                <AlertDescription className="text-left">
                   <strong>Next Steps:</strong>
                   <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
                     <li>Save or screenshot your claim code</li>
@@ -450,6 +455,7 @@ export const ClaimItemForm = () => {
           </CardContent>
         </Card>
       </div>
+      <BackToTopButton />
     </div>
   );
 };
