@@ -611,7 +611,7 @@ export const AdminDashboard = () => {
         {/* Stats Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card 
-            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-accent"
+            className="shadow-md border border-border hover:shadow-lg transition-all cursor-pointer hover:border-accent"
             onClick={() => {
               setActiveTab('reports');
               localStorage.setItem('admin-active-tab', 'reports');
@@ -628,7 +628,7 @@ export const AdminDashboard = () => {
           </Card>
           
           <Card 
-            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-primary"
+            className="shadow-md border border-border hover:shadow-lg transition-all cursor-pointer hover:border-primary"
             onClick={() => {
               setActiveTab('reports');
               localStorage.setItem('admin-active-tab', 'reports');
@@ -645,7 +645,7 @@ export const AdminDashboard = () => {
           </Card>
           
           <Card 
-            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-accent"
+            className="shadow-md border border-border hover:shadow-lg transition-all cursor-pointer hover:border-accent"
             onClick={() => {
               setActiveTab('claims');
               localStorage.setItem('admin-active-tab', 'claims');
@@ -662,7 +662,14 @@ export const AdminDashboard = () => {
           </Card>
           
           <Card 
-            className="shadow-md border border-border hover:shadow-lg transition-shadow cursor-pointer hover:border-green-600"
+            className="shadow-md border hover:shadow-lg transition-all cursor-pointer"
+            style={{ borderColor: 'rgba(0, 51, 102, 0.15)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#22c55e';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(0, 51, 102, 0.15)';
+            }}
             onClick={() => {
               setActiveTab('claims');
               localStorage.setItem('admin-active-tab', 'claims');
@@ -672,9 +679,9 @@ export const AdminDashboard = () => {
             <CardHeader className="pb-6 pt-6 px-6 border-b-0">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-base">Claimed Items</CardDescription>
-                <CheckSquare className="h-5 w-5 text-green-600" />
+                <CheckSquare className="h-5 w-5" style={{ color: '#22c55e' }} />
               </div>
-              <CardTitle className="text-green-600 mt-3">{claimedItems.length}</CardTitle>
+              <CardTitle className="mt-3" style={{ color: '#22c55e' }}>{claimedItems.length}</CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -716,7 +723,14 @@ export const AdminDashboard = () => {
                   <ScrollArea className="h-[500px] pr-4">
                     <div className="space-y-4">
                       {pendingItems.map(item => (
-                      <div key={item.id} className="border border-border rounded-lg p-4 flex items-start gap-4 relative">
+                      <div 
+                        key={item.id} 
+                        className="border border-border rounded-lg p-4 flex items-start gap-4 relative hover:border-accent transition-all cursor-pointer"
+                        onClick={() => {
+                          setSelectedItem(item.id);
+                          setShowItemDialog(true);
+                        }}
+                      >
                         <div 
                           className="relative w-24 h-24 cursor-pointer group/photo flex-shrink-0 bg-muted rounded flex items-center justify-center overflow-hidden"
                           onClick={(e) => {
@@ -792,11 +806,6 @@ export const AdminDashboard = () => {
                             <Button
                               size="sm"
                               className="bg-accent text-white hover:bg-accent/90"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedItem(item.id);
-                                setShowItemDialog(true);
-                              }}
                             >
                               Review
                             </Button>
@@ -1535,7 +1544,7 @@ export const AdminDashboard = () => {
             {/* Side-by-side content */}
             <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
               {/* LEFT: Item Details */}
-              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
                 <h4 className="font-semibold text-primary flex-shrink-0">Item Details</h4>
                 
                 {/* Item Photo */}
@@ -1610,7 +1619,7 @@ export const AdminDashboard = () => {
               </div>
 
               {/* RIGHT: Security Questions & Answers */}
-              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
                 <h4 className="font-semibold text-accent flex-shrink-0">Security Questions & Answers</h4>
                 
                 <div className="space-y-2">
@@ -1687,7 +1696,7 @@ export const AdminDashboard = () => {
             {/* Side-by-side content */}
             <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
               {/* LEFT: Original Item Report */}
-              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+              <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/30 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
                 <h4 className="font-semibold text-primary flex-shrink-0">Original Item Report</h4>
                 
                 {/* Original Item Photo */}
@@ -1771,7 +1780,7 @@ export const AdminDashboard = () => {
               </div>
 
               {/* RIGHT: Claimant's Answers */}
-              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+              <div className="border border-accent/30 rounded-lg p-3 space-y-3 bg-accent/5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
                 <h4 className="font-semibold text-accent flex-shrink-0">Claimant's Submission</h4>
                 
                 {/* Claimant's Proof Photo */}
